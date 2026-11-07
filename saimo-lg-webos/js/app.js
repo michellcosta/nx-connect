@@ -1873,6 +1873,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var radiosIndex = 0;
     var radiosData = [];
     var radioAtual = null;
+    var radioGuardada = null;
     var radioMiniAtivo = false;
     var radioMiniIndex = 0;
     var radiosCardIndex = 0;
@@ -7420,6 +7421,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return _regenerator().w(function (_context24) {
           while (1) switch (_context24.n) {
             case 0:
+              if (radioAtual) radioGuardada = { radio: radioAtual, tocando: !!(radioAudio && !radioAudio.paused) };
               silenciarRadio();
               playingVodItem = vodItem || data.vodItem || null;
               if (currentScreen === "series" || currentScreen === "info" || currentScreen === "catalog" || currentScreen === "home" || currentScreen === "browse" || currentScreen === "eventos" || currentScreen === "guia") {
@@ -8237,6 +8239,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function exitPlayer() {
       fecharFaixa();
+      retomarRadioGuardada();
       var canalAberto = player.currentChannel;
       var nomeCanal = canalAberto && (canalAberto.name || canalAberto.title || "");
       if (window.saimoVodPlayer) window.saimoVodPlayer.fechar();
@@ -10196,8 +10199,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function pararRadio() {
       var estava = radioMiniAtivo;
+      radioGuardada = null;
       silenciarRadio();
       if (estava) sairRadioMini();
+    }
+    function retomarRadioGuardada() {
+      if (!radioGuardada) return;
+      var guardada = radioGuardada;
+      radioGuardada = null;
+      playRadio(guardada.radio);
+      if (!guardada.tocando) alternarRadio();
     }
     function radioVizinha(delta) {
       if (!radiosData.length || !radioAtual) return;
