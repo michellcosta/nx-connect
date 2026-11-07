@@ -75,7 +75,7 @@ body {
 .home-header {
   height: auto;
   min-height: 84px;
-  padding: 36px 24px 10px;
+  padding: 36px 16px 10px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -88,7 +88,7 @@ body {
 .logo-area {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
 .app-badge {
@@ -130,14 +130,14 @@ body {
 }
 
 .clock {
-  font-size: 40px;
+  font-size: 34px;
   font-weight: 800;
   line-height: 1;
   color: #fff;
   background: rgba(8, 10, 16, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 8px 10px;
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
@@ -166,11 +166,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.home-header.com-radio .clock,
-.header.com-radio .clock {
-  display: none;
 }
 
 .radio-mini-btn {
@@ -2338,8 +2333,8 @@ body {
 }
 
 .home-header .search-btn {
-  font-size: 28px;
-  padding: 16px 28px;
+  font-size: 24px;
+  padding: 12px 14px;
   border-radius: 14px;
 }
 
@@ -2361,7 +2356,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 64px;
   height: 72px;
   padding: 0;
 }
@@ -2486,9 +2481,9 @@ body {
   background: transparent;
   color: #e2e8f0;
   border: 2px solid transparent;
-  padding: 12px 12px;
+  padding: 12px 8px;
   border-radius: 999px;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;

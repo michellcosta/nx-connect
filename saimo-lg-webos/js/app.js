@@ -9946,13 +9946,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function encaixarRadioMini() {
       if (!radioMini) return;
-      var clock = relogioDaTela();
-      if (clock && clock.offsetParent) {
+      var pontos = {
+        home: document.getElementById("home-clock"),
+        catalog: document.getElementById("btn-catalog-search"),
+        browse: document.getElementById("browse-clock"),
+        radios: document.getElementById("radios-clock"),
+        eventos: document.getElementById("events-clock"),
+        guia: document.getElementById("guide-clock")
+      };
+      var referencia = pontos[currentScreen];
+      if (referencia && referencia.parentNode) {
         radioMini.classList.remove("flutua");
-        clock.parentNode.insertBefore(radioMini, clock);
-        var alvo = clock.parentNode;
-        while (alvo && alvo !== document.body && !(alvo.classList && (alvo.classList.contains("home-header") || alvo.classList.contains("header")))) alvo = alvo.parentNode;
-        if (alvo && alvo.classList) alvo.classList.toggle("com-radio", !!radioAtual);
+        if (currentScreen === "catalog") referencia.parentNode.insertBefore(radioMini, referencia.nextSibling);
+        else referencia.parentNode.insertBefore(radioMini, referencia);
         return;
       }
       radioMini.classList.add("flutua");
