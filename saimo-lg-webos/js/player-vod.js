@@ -121,6 +121,18 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
         if (self.zone === "skip") self.zone = "controls";
       });
     }
+    var botoesTransporte = [["vod-btn-back", "back"], ["vod-btn-play", "play"], ["vod-btn-fwd", "fwd"], ["vod-btn-gear", "gear"]];
+    botoesTransporte.forEach(function (par) {
+      var el = document.getElementById(par[0]);
+      if (!el) return;
+      el.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (!self.active) return;
+        self.tbFocus = par[1];
+        self.atualizarTransport();
+        self.acionarBotao(par[1]);
+      });
+    });
   };
   _proto.bindVideoEvents = function bindVideoEvents() {
     var _this = this;
@@ -512,17 +524,20 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
     this.showOSD(5000);
   };
   _proto.acionarTransport = function acionarTransport() {
-    if (this.tbFocus === "back") {
+    this.acionarBotao(this.tbFocus);
+  };
+  _proto.acionarBotao = function acionarBotao(qual) {
+    if (qual === "back") {
       this.pularInstantaneo(-1);
       this.showOSD(5000);
       return;
     }
-    if (this.tbFocus === "fwd") {
+    if (qual === "fwd") {
       this.pularInstantaneo(1);
       this.showOSD(5000);
       return;
     }
-    if (this.tbFocus === "gear") {
+    if (qual === "gear") {
       this.abrirAjustes();
       return;
     }

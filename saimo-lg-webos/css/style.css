@@ -5298,6 +5298,13 @@ body {
 .vod-tb.is-focused {
   box-shadow: 0 0 0 4px #fff, 0 0 28px rgba(0, 210, 255, 0.55);
 }
+.vod-tb {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.vod-tb:hover {
+  box-shadow: 0 0 0 4px #fff, 0 0 28px rgba(0, 210, 255, 0.55);
+}
 .vod-tb-play.is-playing .vod-ico-play,
 .vod-tb-play.is-paused .vod-ico-pause {
   display: none;
