@@ -1,0 +1,23 @@
+{
+  "id": "com.saimo.tv",
+  "version": "1.0.4",
+  "vendor": "Saimo",
+  "type": "web",
+  "main": "index.html",
+  "title": "Saimo TV",
+  "icon": "icon80.png",
+  "largeIcon": "icon130.png",
+  "resolution": "1920x1080",
+  "bgColor": "#0B0F2A",
+  "requiredVersion": "3.0.0",
+  "supportGpuSpeed": true,
+  "supportQuickStart": true,
+  "uiRevision": 2,
+  "handlesRelaunch": false,
+  "disableBackHistoryAPI": true,
+  "trustLevel": "default",
+  "requiredPermissions": [
+    "network.public",
+    "com.webos.media"
+  ]
+}

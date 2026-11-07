@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
+  <title>Saimo TV</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="css/style.css?v=xt82">
+</head>
+<body>
+
+  <div id="abertura-app" class="abertura-app">
+    <video id="abertura-video" width="1920" height="1080" muted playsinline preload="none"></video>
+  </div>
+
+  <div id="screen-home" class="screen">
+    <div id="home-hero-bg" class="home-hero-bg"></div>
+    <div id="home-side-scrim" class="home-side-scrim hidden"></div>
+    <nav id="home-side-menu" class="home-side-menu" aria-hidden="true">
+      <div class="home-side-menu-brand">
+        <img src="icon.png" alt="" class="home-side-logo">
+        <span>Saimo TV</span>
+      </div>
+      <button type="button" class="home-side-item" data-section="buscar">Buscar</button>
+      <button type="button" class="home-side-item" data-section="home">Início</button>
+      <button type="button" class="home-side-item" data-section="aovivo">Ao vivo</button>
+      <button type="button" class="home-side-item" data-section="eventos">Eventos</button>
+      <button type="button" class="home-side-item" data-section="ondemand">On Demand</button>
+      <button type="button" class="home-side-item" data-section="favoritos">Favoritos</button>
+      <button type="button" class="home-side-item" data-section="radios">Rádios</button>
+    </nav>
+    <button type="button" id="home-menu-seta" class="home-menu-seta hidden" aria-label="Menu">◄</button>
+
+    <div id="home-scroll" class="home-scroll">
+      <header class="home-header">
+        <div class="logo-area">
+          <img src="icon.png" alt="" class="home-logo">
+          <div class="app-title">Saimo TV</div>
+        </div>
+        <nav class="home-explore" id="home-explore">
+          <button class="explore-chip is-current" data-section="home">Início</button>
+          <button class="explore-chip" data-section="aovivo">Ao vivo</button>
+          <button class="explore-chip" data-section="ondemand">On Demand</button>
+          <button class="explore-chip" data-section="favoritos">Favoritos</button>
+          <button class="explore-chip" data-section="radios">Rádios</button>
+        </nav>
+        <div class="header-right">
+          <button id="btn-open-search" class="search-btn" type="button">Buscar</button>
+          <button id="btn-open-home-edit" class="search-btn home-icon-btn" type="button" title="Editar início" aria-label="Editar início">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6h4"/><path d="M14 6h6"/><circle cx="11" cy="6" r="2.25"/>
+              <path d="M4 12h8"/><path d="M18 12h2"/><circle cx="15" cy="12" r="2.25"/>
+              <path d="M4 18h2"/><path d="M12 18h8"/><circle cx="9" cy="18" r="2.25"/>
+            </svg>
+          </button>
+          <button id="btn-open-settings" class="search-btn home-icon-btn" type="button" title="Ajustes" aria-label="Ajustes">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+          <div id="radio-mini" class="radio-mini hidden">
+            <button type="button" id="radio-prev" class="radio-mini-btn" aria-label="Rádio anterior">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11 7 L6 12 l5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18 7 L13 12 l5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div id="radio-mini-nome" class="radio-mini-nome"></div>
+            <button type="button" id="radio-toggle" class="radio-mini-btn radio-play" aria-label="Pausar"></button>
+            <button type="button" id="radio-next" class="radio-mini-btn" aria-label="Próxima rádio">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 7 L11 12 l-5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13 7 L18 12 l-5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" id="radio-lista" class="radio-mini-btn" aria-label="Escolher rádio">≡</button>
+            <button type="button" id="radio-stop" class="radio-mini-btn" aria-label="Parar">■</button>
+          </div>
+          <div id="home-clock" class="clock">--:--</div>
+        </div>
+      </header>
+      <div class="home-hero-block hidden" id="home-hero">
+        <div id="home-hero-kicker" class="home-hero-kicker">Em alta</div>
+        <div id="home-spot-meta" class="home-spot-chips"></div>
+        <h1 id="home-spot-title" class="home-headline"></h1>
+        <p id="home-spot-overview" class="home-spot-overview"></p>
+        <div class="home-hero-actions">
+          <button id="btn-hero-play" class="info-btn info-btn-primary">Assistir</button>
+          <button id="btn-hero-info" class="info-btn info-btn-secondary">Detalhes</button>
+        </div>
+      </div>
+      <div id="home-hook" class="home-hook hidden" tabindex="-1"></div>
+
+      <div id="home-rows" class="home-rows"></div>
+    </div>
+
+    <footer class="home-footer">
+      <div class="tip-item"><span>▲ ▼ ◄ ►</span> Navegar</div>
+      <div class="tip-item"><span>OK</span> Abrir</div>
+      <div class="tip-item"><span>[Vermelho]</span> Buscar</div>
+    </footer>
+    <div id="versao-banner" class="versao-banner hidden">
+      <span id="versao-banner-texto"></span>
+    </div>
+  </div>
+
+  <div id="cats-mais-screen" class="info-panel-overlay tv-ajustes">
+    <div class="cats-mais-pagina">
+      <h1>Categorias</h1>
+      <p class="listas-hint">OK escolhe o grupo · VOLTAR fecha</p>
+      <div id="cats-mais-grid" class="cats-mais-grid"></div>
+    </div>
+  </div>
+
+  <div id="screen-catalog" class="screen hidden">
+    <header class="header">
+      <div class="header-left">
+        <button id="btn-back-hub" class="back-pill">◄ Início</button>
+        <div id="catalog-section-title" class="section-badge">TV AO VIVO</div>
+      </div>
+      <div class="header-status">
+        <button id="btn-catalog-guide" class="search-btn hidden">Guia</button>
+        <button id="btn-catalog-search" class="search-btn">Buscar</button>
+        <div id="channel-counter" class="channel-counter">Carregando...</div>
+        <div id="catalog-clock" class="clock">--:--</div>
+      </div>
+    </header>
+
+    <div id="resume-banner" class="resume-banner hidden">
+      <div class="resume-info">
+        <span class="resume-badge">CONTINUAR ASSISTINDO</span>
+        <div id="resume-title" class="resume-title">Título</div>
+        <div id="resume-time" class="resume-time">Parou em --:--</div>
+      </div>
+      <button id="btn-resume-play" class="resume-play-btn">Continuar ▶</button>
+    </div>
+
+    <nav id="categories-bar" class="categories-bar"></nav>
+
+    <main id="content-area" class="content-area">
+      <div id="channels-grid" class="channels-grid"></div>
+    </main>
+
+    <div id="aovivo-busca" class="aovivo-busca hidden">
+      <div id="aovivo-busca-query" class="aovivo-busca-query">_</div>
+      <div id="aovivo-busca-kb" class="aovivo-busca-kb"></div>
+    </div>
+
+    <footer class="footer-tips">
+      <div class="tip-item"><span>▲ ▼ ◄ ►</span> Navegar</div>
+      <div class="tip-item"><span>OK</span> Detalhes</div>
+      <div class="tip-item"><span>[Amarelo]</span> Favoritar</div>
+      <div class="tip-item"><span>VOLTAR</span> Voltar uma sessão</div>
+    </footer>
+  </div>
+
+  <div id="search-modal" class="modal-overlay-bg">
+    <div class="tv-search tv-search-stack">
+      <div class="tv-search-top">
+        <div class="tv-search-hint">OK tecla · ▼ resultados · VOLTAR fecha</div>
+        <div id="search-keyboard" class="tv-keyboard kb-qwerty"></div>
+        <div id="search-query" class="tv-search-query">_</div>
+        <div id="search-results-count" class="search-results-info">Digite para buscar...</div>
+        <div id="search-results-grid" class="search-rows"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-screen" class="info-panel-overlay tv-ajustes">
+    <div class="tv-ajustes-shell">
+      <aside class="tv-ajustes-nav-wrap">
+        <div class="tv-ajustes-brand">Ajustes</div>
+        <div id="settings-nav" class="tv-ajustes-nav"></div>
+        <p class="settings-ver" id="settings-ver">Saimo TV (1.0.4) - atualizado por NeXus</p>
+      </aside>
+      <section class="tv-ajustes-main">
+        <h1 id="settings-heading">Ajustes</h1>
+        <p id="settings-sub" class="tv-ajustes-sub"></p>
+        <div id="settings-list" class="settings-list"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="jogos-hoje-screen" class="info-panel-overlay">
+    <div class="jogos-hoje-card">
+      <h1>Jogos de hoje</h1>
+      <div id="jogos-hoje-list" class="settings-list"></div>
+    </div>
+  </div>
+
+  <div id="home-edit-screen" class="info-panel-overlay tv-ajustes">
+    <div class="settings-inner tv-ajustes-pagina">
+      <h1>Editar início</h1>
+      <p class="listas-hint">Liga ou desliga as fileiras da tela inicial. OK alterna.</p>
+      <div id="home-edit-list" class="settings-list"></div>
+    </div>
+  </div>
+
+  <div id="listas-screen" class="info-panel-overlay tv-ajustes">
+    <div class="settings-inner listas-inner tv-ajustes-pagina">
+      <h1>Minhas listas</h1>
+      <p class="listas-hint">Entra pelo QR do celular · atualiza sozinha a cada 12 h · OK liga ou desliga · vermelho remove.</p>
+      <div id="listas-status" class="listas-status"></div>
+      <div id="listas-itens" class="settings-list"></div>
+    </div>
+  </div>
+
+  <div id="parear-screen" class="info-panel-overlay tv-ajustes">
+    <div class="parear-tv">
+      <div class="parear-tv-qrbox">
+        <img id="parear-qr" class="parear-qr" alt="QR">
+      </div>
+      <div class="parear-tv-side">
+        <p class="parear-kicker">Saimo TV</p>
+        <h1>Ligar com o celular</h1>
+        <p class="parear-hint">Aponte a câmera para o QR. O código vale 6 minutos.</p>
+        <div id="parear-code" class="parear-code">------</div>
+        <p id="parear-status" class="parear-status">Aguardando o celular…</p>
+        <p id="parear-url" class="parear-url"></p>
+        <p class="parear-hint parear-hint-cmd">VOLTAR cancela · OK gera outro código</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="oficial-screen" class="info-panel-overlay tv-ajustes">
+    <div class="settings-inner listas-inner tv-ajustes-pagina">
+      <h1>Listas oficiais</h1>
+      <p class="listas-hint">Xtream fica 7 dias neste aparelho. Ligar com o celular (QR) para conta ou lista.</p>
+      <div id="oficial-url" class="listas-url"></div>
+      <div id="oficial-teclado" class="tv-keyboard listas-teclado hidden"></div>
+      <div id="oficial-status" class="listas-status"></div>
+      <div id="oficial-progress" class="oficial-progress hidden">
+        <div class="oficial-progress-bg"><div id="oficial-progress-fill" class="oficial-progress-fill"></div></div>
+        <div id="oficial-progress-pct" class="oficial-progress-pct">0%</div>
+      </div>
+      <div id="oficial-itens" class="settings-list"></div>
+    </div>
+  </div>
+
+  <div id="pin-screen" class="info-panel-overlay tv-ajustes">
+    <div class="pin-box">
+      <h2>PIN parental</h2>
+      <p id="pin-prompt">Digite o PIN de 4 dígitos</p>
+      <div id="pin-dots" class="pin-dots">••••</div>
+      <div id="pin-pad" class="tv-keyboard pin-pad"></div>
+      <p class="listas-hint">VOLTAR cancela</p>
+    </div>
+  </div>
+
+  <div id="screen-browse" class="screen hidden">
+    <header class="header">
+      <div class="header-left">
+        <button id="btn-browse-back" class="back-pill">◄ Voltar</button>
+        <div id="browse-title" class="section-badge">ON DEMAND</div>
+      </div>
+      <div class="header-status">
+        <div id="browse-count" class="channel-counter"></div>
+        <div id="browse-clock" class="clock">--:--</div>
+      </div>
+    </header>
+    <div id="browse-toolbar" class="browse-toolbar hidden">
+      <nav id="browse-subnav" class="browse-subnav" aria-label="On Demand">
+        <button type="button" class="browse-tab" data-kind="ondemand">On Demand</button>
+        <button type="button" class="browse-tab" data-kind="filmes">Filmes</button>
+        <button type="button" class="browse-tab" data-kind="series">Séries</button>
+        <button type="button" class="browse-tab" data-kind="animes">Animes</button>
+        <button type="button" class="browse-tab" data-kind="doramas">Doramas</button>
+      </nav>
+      <div class="browse-toolbar-right">
+        <button id="btn-browse-search" class="search-btn" type="button">Buscar</button>
+        <button id="btn-browse-az" class="browse-az-btn" type="button">A a Z</button>
+      </div>
+    </div>
+    <div id="browse-hub" class="od-hub hidden"></div>
+    <div id="browse-shelf" class="od-shelf hidden">
+      <aside id="od-side" class="od-side"></aside>
+      <div id="od-fly" class="od-fly hidden"></div>
+      <section class="od-main">
+        <h2 id="od-title" class="od-title"></h2>
+        <div id="od-grid" class="od-grid"></div>
+      </section>
+    </div>
+    <div id="browse-rows" class="home-rows"></div>
+  </div>
+
+  <div id="events-screen" class="screen hidden">
+    <header class="header">
+      <div class="header-left">
+        <button id="btn-events-back" class="back-pill">◄ Início</button>
+        <div class="section-badge">EVENTOS</div>
+      </div>
+      <div class="header-status">
+        <div id="events-clock" class="clock">--:--</div>
+      </div>
+    </header>
+    <div id="events-list" class="events-list"></div>
+  </div>
+
+  <div id="guide-screen" class="screen hidden">
+    <header class="header">
+      <div class="header-left">
+        <button id="btn-guide-back" class="back-pill">◄ Início</button>
+        <div class="section-badge">AO VIVO</div>
+      </div>
+      <div class="header-status">
+        <button id="btn-guide-now" class="search-btn">Agora</button>
+        <div id="guide-status" class="channel-counter"></div>
+        <div id="guide-clock" class="clock">--:--</div>
+      </div>
+    </header>
+    <div class="guide-hero" id="guide-hero">
+      <img id="guide-hero-poster" class="guide-hero-poster" alt="" style="display:none;">
+      <div class="guide-hero-text">
+        <h1 id="guide-hero-title" class="guide-hero-title">Ao vivo</h1>
+        <div id="guide-hero-meta" class="guide-hero-meta"></div>
+        <p id="guide-hero-overview" class="guide-hero-overview"></p>
+      </div>
+    </div>
+    <div id="guide-list" class="guide-list"></div>
+  </div>
+
+  <div id="radios-screen" class="screen hidden">
+    <header class="header">
+      <div class="header-left">
+        <button id="btn-radios-back" class="back-pill">◄ Início</button>
+        <div class="section-badge">RÁDIOS</div>
+      </div>
+      <div class="header-status">
+        <button id="btn-radios-busca" class="search-btn" type="button">Buscar</button>
+        <div id="radio-now" class="channel-counter">Parada</div>
+        <div id="radios-clock" class="clock">--:--</div>
+      </div>
+    </header>
+    <div id="radios-grid" class="radios-grid"></div>
+    <audio id="radio-audio" preload="none"></audio>
+  </div>
+
+  <div id="radios-busca" class="modal-overlay-bg">
+    <div class="tv-search tv-search-stack">
+      <div class="tv-search-top">
+        <div class="tv-search-hint">OK tecla · ▼ rádios · VOLTAR fecha</div>
+        <div id="radios-busca-teclado" class="tv-keyboard kb-qwerty"></div>
+        <div class="tv-search-query" id="radios-busca-query">_</div>
+        <div id="radios-busca-contagem" class="search-results-info">Digite o nome da rádio</div>
+        <div id="radios-busca-grade"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="radios-card-screen" class="info-panel-overlay">
+    <div class="radios-card">
+      <div class="radios-card-head">
+        <h1>Rádios</h1>
+        <button id="btn-radios-card-busca" class="search-btn" type="button">Buscar</button>
+      </div>
+      <div id="radios-card-grid"></div>
+    </div>
+  </div>
+
+  <div id="info-panel" class="info-panel-overlay">
+    <div id="info-panel-backdrop" class="info-panel-backdrop"></div>
+    <div class="ficha-card">
+      <button id="btn-info-close" class="ficha-close" type="button" aria-label="Fechar">×</button>
+      <div class="ficha-top">
+        <div class="info-panel-poster-wrap">
+          <img id="info-panel-poster" class="info-panel-poster" src="" alt="">
+          <div id="info-panel-poster-placeholder" class="info-panel-poster-placeholder">?</div>
+        </div>
+        <div class="info-panel-details">
+          <div class="info-panel-type-badge" id="info-panel-type">FILME</div>
+          <h2 id="info-panel-title" class="info-panel-title">Título</h2>
+          <p id="info-panel-tagline" class="info-panel-tagline hidden"></p>
+          <div class="info-panel-meta-row">
+            <span id="info-panel-stars" class="meta-pill"></span>
+            <span id="info-panel-year" class="meta-pill"></span>
+            <span id="info-panel-runtime" class="meta-pill"></span>
+            <span id="info-panel-cert" class="meta-pill"></span>
+            <span id="info-panel-rating" class="meta-pill hidden"></span>
+            <span id="info-panel-sources" class="hidden"></span>
+          </div>
+          <p id="info-panel-category" class="ficha-genres"></p>
+          <div class="info-panel-actions">
+            <button id="btn-info-play" class="info-btn info-btn-primary">▶  Assistir</button>
+            <button id="btn-info-resume" class="info-btn info-btn-resume hidden">▶  Continuar</button>
+            <button id="btn-info-favorite" class="info-btn info-btn-ghost">Favoritar</button>
+            <button id="btn-info-trailer" class="info-btn info-btn-ghost hidden">▶  Trailer</button>
+          </div>
+          <p id="info-panel-overview" class="info-panel-overview"></p>
+          <div id="info-panel-progress-wrap" class="info-progress-wrap hidden">
+            <div class="info-progress-label" id="info-panel-progress-label">Parou em 01:23:45</div>
+            <div class="info-progress-bar-bg">
+              <div id="info-panel-progress-bar" class="info-progress-bar-fill" style="width:0%"></div>
+            </div>
+          </div>
+          <div id="info-panel-credits" class="ficha-credits hidden"></div>
+        </div>
+      </div>
+      <div id="info-fontes-bloco" class="ficha-fontes-block hidden">
+        <div class="ficha-block-label">Fontes e versões disponíveis</div>
+        <div id="info-panel-fontes" class="ficha-source-grid"></div>
+      </div>
+      <div class="info-cast-block">
+        <div class="info-cast-label">Elenco</div>
+        <div id="info-panel-cast" class="info-panel-cast"></div>
+      </div>
+    </div>
+  </div>
+  <div id="trailer-overlay" class="trailer-overlay">
+    <iframe id="trailer-frame" title="Trailer" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
+  <div id="series-screen" class="series-screen">
+    <div id="series-backdrop" class="series-backdrop"></div>
+    <div id="series-ficha-view" class="series-ficha-view">
+      <div class="ficha-card">
+        <button id="btn-series-back" class="ficha-close" type="button" aria-label="Fechar">×</button>
+        <div class="ficha-top">
+          <div class="info-panel-poster-wrap">
+            <img id="series-poster" class="info-panel-poster" alt="">
+            <div id="series-poster-ph" class="info-panel-poster-placeholder">?</div>
+          </div>
+          <div class="series-ficha-main">
+            <div class="info-panel-type-badge">SÉRIE</div>
+            <h2 id="series-title" class="info-panel-title">Título</h2>
+            <p id="series-tagline" class="info-panel-tagline hidden"></p>
+            <div class="info-panel-meta-row">
+              <span id="series-stars" class="meta-pill"></span>
+              <span id="series-year" class="meta-pill"></span>
+              <span id="series-seasons-pill" class="meta-pill"></span>
+              <span id="series-cert" class="meta-pill"></span>
+            </div>
+            <p id="series-genres" class="ficha-genres"></p>
+            <div class="info-panel-actions series-ficha-actions">
+              <button id="btn-series-play" class="info-btn info-btn-primary">▶  Assistir</button>
+              <button id="btn-series-fav" class="info-btn info-btn-ghost">Favoritar</button>
+              <button id="btn-series-episodes" class="info-btn info-btn-secondary">Todos os episódios</button>
+            </div>
+            <p id="series-overview" class="info-panel-overview series-ficha-overview"></p>
+            <div id="series-credits" class="ficha-credits hidden"></div>
+          </div>
+        </div>
+        <div id="series-ficha-seasons" class="pill-row series-ficha-seasons hidden"></div>
+        <div class="series-ficha-ep-label">Episódios <span id="series-ep-count"></span></div>
+        <div id="series-ficha-episodes" class="series-ficha-episodes"></div>
+        <div class="info-cast-block series-ficha-cast">
+          <div class="info-cast-label">Elenco</div>
+          <div id="series-cast" class="info-panel-cast"></div>
+        </div>
+      </div>
+    </div>
+    <div id="series-ep-view" class="series-ep-view hidden">
+      <button id="btn-series-ep-back" class="back-pill">◄ Voltar</button>
+      <h2 id="series-ep-heading" class="series-ep-heading">Episódios</h2>
+      <div class="series-filters">
+        <div id="series-seasons" class="pill-row"></div>
+        <div id="series-versions" class="pill-row"></div>
+      </div>
+      <div id="series-episodes" class="series-episodes"></div>
+    </div>
+  </div>
+
+  <div id="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div id="modal-title" class="modal-title">Escolha</div>
+        <div class="modal-badge">VOLTAR: Fechar</div>
+      </div>
+      <div id="modal-list" class="modal-list"></div>
+    </div>
+  </div>
+
+  <div id="player-container">
+    <video id="video-element" playsinline tabindex="-1" style="pointer-events: none;"></video>
+    <div id="subtitle-overlay" class="subtitle-overlay"></div>
+
+    <div id="player-loading" class="player-loading">
+      <div class="spinner"></div>
+      <div id="loading-message" class="loading-text">Conectando transmissão...</div>
+    </div>
+
+    <div id="player-osd" class="player-osd hidden">
+      <div class="osd-top">
+        <div class="osd-channel-header">
+          <img id="osd-logo" class="osd-logo" src="" alt="" style="display: none;">
+          <div>
+            <div id="osd-title" class="osd-channel-title">Carregando...</div>
+            <div id="osd-program" class="osd-program"></div>
+            <div id="osd-category" class="osd-channel-cat">Ao Vivo</div>
+            <div id="osd-desc" class="osd-desc"></div>
+          </div>
+        </div>
+        <div class="osd-badges">
+          <div id="osd-live-badge" class="osd-badge live">AO VIVO</div>
+          <div id="osd-time" class="osd-badge time-badge" style="display:none;">00:00 / 00:00</div>
+          <div id="osd-quality" class="osd-badge">FHD</div>
+          <div id="osd-origem" class="osd-badge osd-origem-chip origem-saimo" style="display:none;">Saimo</div>
+        </div>
+      </div>
+
+      <div class="osd-bottom">
+        <div class="osd-progress-wrap" id="osd-progress-wrap" style="display:none;">
+          <div class="osd-progress-bg prog-canal vazia">
+            <div id="osd-progress-fill" class="osd-progress-fill prog-canal-fill"></div>
+          </div>
+        </div>
+        <div class="osd-bottom-row">
+          <div>
+            <div id="osd-status" class="osd-status-text">Pronto</div>
+            <div class="osd-shortcuts-bar">
+              <span id="osd-skip-hint">[Verde] Pular trecho</span>
+              <span>[Amarelo] Favoritar</span>
+              <span>[Vermelho] Qualidade</span>
+              <span>[Azul] Legendas</span>
+              <span>[▲] Fontes</span>
+              <span>[◄ ►] 10s</span>
+            </div>
+          </div>
+          <div id="osd-source" class="osd-source-indicator">Fonte 1 de 1</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="vod-skip-hud" class="vod-skip-hud hidden" aria-hidden="true">
+      <div id="vod-skip-hud-arrows" class="vod-skip-hud-arrows">► ►</div>
+      <div id="vod-skip-hud-amt" class="vod-skip-hud-amt">+10s</div>
+      <div id="vod-skip-hud-time" class="vod-skip-hud-time">00:00</div>
+    </div>
+    <div id="vod-pause-icon" class="vod-pause-icon hidden" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><rect x="16" y="12" width="12" height="40" rx="3" fill="#fff"/><rect x="36" y="12" width="12" height="40" rx="3" fill="#fff"/></svg>
+    </div>
+
+    <!-- VOD OSD DEDICADO -->
+    <div id="vod-osd" class="vod-osd hidden">
+      <!-- Topo VOD -->
+      <div class="vod-top">
+        <div class="vod-meta-header">
+          <div class="vod-title-box">
+            <div id="vod-title" class="vod-title">Título do Filme</div>
+            <div id="vod-subtitle" class="vod-subtitle">S01 · E01 · Nome do Episódio</div>
+          </div>
+        </div>
+        <div class="vod-top-badges">
+          <div id="vod-ends-at" class="vod-badge ends-at">Termina às --:--</div>
+          <div id="vod-badge-audio" class="vod-badge">DUB</div>
+          <div id="vod-badge-quality" class="vod-badge">1080p</div>
+          <div id="vod-badge-engine" class="vod-badge engine hidden">NATIVO</div>
+        </div>
+      </div>
+
+      <!-- Centro VOD (Modais & Cards) -->
+      <div class="vod-center">
+        <!-- Indicador de Seek Buffering -->
+        <div id="vod-buffering" class="vod-buffering hidden">
+          <div class="spinner"></div>
+          <div id="vod-buffering-text" class="vod-buffering-text">Carregando trecho...</div>
+        </div>
+
+        <!-- Diálogo Continuar Assistindo -->
+        <div id="vod-resume-dialog" class="vod-modal hidden">
+          <div class="vod-modal-box">
+            <h2 class="vod-modal-title">Continuar assistindo?</h2>
+            <p id="vod-resume-text" class="vod-modal-desc">Você parou em 42:10</p>
+            <div class="vod-modal-actions">
+              <button id="vod-resume-btn-yes" class="vod-btn is-focused" type="button">Continuar (OK)</button>
+              <button id="vod-resume-btn-restart" class="vod-btn" type="button">Do início</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diálogo Ainda Está Assistindo? -->
+        <div id="vod-idle-dialog" class="vod-modal hidden">
+          <div class="vod-modal-box">
+            <h2 class="vod-modal-title">Ainda está assistindo?</h2>
+            <p class="vod-modal-desc">A reprodução foi pausada automaticamente.</p>
+            <div class="vod-modal-actions">
+              <button id="vod-idle-btn-continue" class="vod-btn is-focused" type="button">Continuar assistindo (OK)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botão Pular abertura (focável, some após 8 s) -->
+        <button id="vod-skip-btn" class="vod-skip-btn hidden" type="button">Pular abertura</button>
+
+        <!-- Próximo Episódio Card -->
+        <div id="vod-next-card" class="vod-next-card hidden">
+          <div class="vod-next-label">PRÓXIMO EPISÓDIO</div>
+          <div id="vod-next-title" class="vod-next-title">Episódio seguinte</div>
+          <div class="vod-next-progress-bar"><div id="vod-next-progress-fill" class="vod-next-progress-fill"></div></div>
+          <div class="vod-next-actions">
+            <button id="vod-next-btn-play" class="vod-btn-sm is-focused" type="button">Assistir agora (OK)</button>
+            <button id="vod-next-btn-cancel" class="vod-btn-sm" type="button">Cancelar</button>
+          </div>
+        </div>
+
+        <!-- Painel de Configurações do Player VOD -->
+        <div id="vod-settings-panel" class="vod-settings-panel hidden">
+          <div class="vod-settings-header">
+            <h3>Ajustes da Reprodução</h3>
+            <span class="vod-settings-hint">[Voltar] Fechar</span>
+          </div>
+          <div class="vod-settings-body">
+            <div id="vod-setting-fontes" class="vod-setting-row hidden" data-setting="fonte">
+              <span class="vod-setting-label">Áudio / fonte</span>
+              <div class="vod-setting-chips"></div>
+            </div>
+            <div class="vod-setting-row" data-setting="acoes">
+              <span class="vod-setting-label">Ações</span>
+              <div class="vod-setting-chips">
+                <button class="vod-chip" type="button" data-act="skip">Pular abertura</button>
+                <button class="vod-chip" type="button" data-act="restart">Do início</button>
+                <button id="vod-chip-fav" class="vod-chip" type="button" data-act="fav">Favoritar</button>
+                <button class="vod-chip" type="button" data-act="subs">Legendas</button>
+              </div>
+            </div>
+            <div class="vod-setting-row" data-setting="speed">
+              <span class="vod-setting-label">Velocidade</span>
+              <div class="vod-setting-chips">
+                <button class="vod-chip" data-val="0.75">0.75x</button>
+                <button class="vod-chip is-active" data-val="1.0">Normal (1.0x)</button>
+                <button class="vod-chip" data-val="1.25">1.25x</button>
+                <button class="vod-chip" data-val="1.5">1.5x</button>
+              </div>
+            </div>
+            <div class="vod-setting-row" data-setting="ratio">
+              <span class="vod-setting-label">Proporção</span>
+              <div class="vod-setting-chips">
+                <button class="vod-chip is-active" data-val="contain">Ajustar (Original)</button>
+                <button class="vod-chip" data-val="fill">Preencher (16:9)</button>
+                <button class="vod-chip" data-val="cover">Zoom</button>
+              </div>
+            </div>
+            <div class="vod-setting-row" data-setting="sleep">
+              <span class="vod-setting-label">Timer de Sono</span>
+              <div class="vod-setting-chips">
+                <button class="vod-chip is-active" data-val="0">Desligado</button>
+                <button class="vod-chip" data-val="30">30 min</button>
+                <button class="vod-chip" data-val="60">60 min</button>
+                <button class="vod-chip" data-val="90">90 min</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra Inferior VOD e Seekbar -->
+      <div class="vod-bottom">
+        <div class="vod-time-row">
+          <div class="vod-time-left">
+            <span id="vod-current-time" class="vod-current-time">00:00:00</span>
+            <span id="vod-step-badge" class="vod-step-badge hidden">+10s</span>
+          </div>
+          <div class="vod-time-right">
+            <span id="vod-remaining-time" class="vod-remaining-time">-00:00:00</span>
+            <span class="vod-time-divider">/</span>
+            <span id="vod-duration-time" class="vod-duration-time">00:00:00</span>
+          </div>
+        </div>
+
+        <div id="vod-seekbar" class="vod-seekbar" tabindex="0" role="slider" aria-label="Navegar no tempo">
+          <div class="vod-seek-track">
+            <div id="vod-seek-buffered" class="vod-seek-buffered"></div>
+            <div id="vod-seek-played" class="vod-seek-played"></div>
+            <div id="vod-seek-cursor" class="vod-seek-cursor hidden">
+              <div id="vod-cursor-tooltip" class="vod-cursor-tooltip">00:00:00</div>
+            </div>
+            <div id="vod-seek-marks" class="vod-seek-marks"></div>
+          </div>
+        </div>
+
+        <div class="vod-controls-bar">
+          <div class="vod-transport">
+            <button id="vod-btn-back" class="vod-tb vod-tb-skip" type="button" aria-label="Voltar 10 segundos">
+              <svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M8 24l16-12v8.4L38 12v24L24 27.6V36L8 24z"/></svg>
+              <span>10s</span>
+            </button>
+            <button id="vod-btn-play" class="vod-tb vod-tb-play is-focused is-playing" type="button" aria-label="Pausar">
+              <svg class="vod-ico vod-ico-pause" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><rect x="12" y="8" width="8" height="32" rx="2" fill="currentColor"/><rect x="28" y="8" width="8" height="32" rx="2" fill="currentColor"/></svg>
+              <svg class="vod-ico vod-ico-play" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path fill="currentColor" d="M16 8l24 16L16 40V8z"/></svg>
+            </button>
+            <button id="vod-btn-fwd" class="vod-tb vod-tb-skip" type="button" aria-label="Avançar 10 segundos">
+              <svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M40 24L24 36v-8.4L10 36V12l14 8.4V12l16 12z"/></svg>
+              <span>10s</span>
+            </button>
+            <button id="vod-btn-gear" class="vod-tb vod-tb-gear" type="button" aria-label="Ajustes">
+              <svg viewBox="0 0 48 48" width="32" height="32" aria-hidden="true"><path fill="currentColor" d="M19.4 4h9.2l1.2 6.6a14 14 0 0 1 4.4 2.6l6.2-2.4 4.6 8-5 4.2a14 14 0 0 1 0 5.2l5 4.2-4.6 8-6.2-2.4a14 14 0 0 1-4.4 2.6L28.6 44h-9.2l-1.2-6.6a14 14 0 0 1-4.4-2.6l-6.2 2.4-4.6-8 5-4.2a14 14 0 0 1 0-5.2l-5-4.2 4.6-8 6.2 2.4a14 14 0 0 1 4.4-2.6zm4.6 12a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/></svg>
+            </button>
+          </div>
+          <div id="vod-source-indicator" class="vod-source-indicator">Fonte 1 de 1</div>
+          <span id="vod-hint-skip" class="hidden"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="zap-faixa" class="zap-faixa hidden">
+      <div id="zap-atual" class="zap-atual"></div>
+      <div id="zap-abas" class="zap-abas"></div>
+      <div id="zap-trilho" class="zap-trilho"></div>
+    </div>
+
+    <button id="osd-skip-btn" class="osd-skip-btn hidden">Pular abertura</button>
+
+    <div id="xtream-progress" class="xtream-progress hidden">
+      <div class="xtream-progress-card">
+        <div id="xtream-progress-title" class="xtream-progress-title">Baixando seu Xtream</div>
+        <div id="xtream-progress-msg" class="xtream-progress-msg">Entrando no painel…</div>
+        <div class="xtream-progress-bar-bg">
+          <div id="xtream-progress-fill" class="xtream-progress-fill"></div>
+        </div>
+        <div id="xtream-progress-pct" class="xtream-progress-pct">0%</div>
+      </div>
+    </div>
+
+    <div id="next-ep-card" class="next-ep-card hidden">
+      <div class="next-ep-label">PRÓXIMO EPISÓDIO</div>
+      <div id="next-ep-title" class="next-ep-title">Episódio</div>
+      <div class="next-ep-hint">OK · Assistir &nbsp;|&nbsp; VOLTAR · Dispensar</div>
+    </div>
+  </div>
+
+  <script src="js/polyfills.js"></script>
+  <script src="js/listas.js?v=xt34"></script>
+  <script src="js/abertura.js"></script>
+  <script src="js/hls.min.js"></script>
+  <script src="js/vod_bases.js"></script>
+  <script src="js/channels_data.js"></script>
+  <script src="js/ajustes.js?v=xt55"></script>
+  <script src="js/fonte-preferida.js?v=xt55"></script>
+  <script src="js/listas-oficiais.js"></script>
+  <script src="js/contexto.js"></script>
+  <script src="js/fontes.js?v=xt59"></script>
+  <script src="js/api.js?v=xt79"></script>
+  <script src="js/extra.js?v=xt70"></script>
+  <script src="js/epg.js?v=xt17"></script>
+  <script src="js/ficha.js?v=xt82"></script>
+  <script src="js/generos-ondemand.js?v=xt55"></script>
+  <script src="js/canais-aovivo.js?v=xt61"></script>
+  <script src="js/capas.js?v=xt47"></script>
+  <script src="js/logos-tv.js?v=xt54"></script>
+  <script src="js/logos.js?v=xt79"></script>
+  <script src="js/legendas.js"></script>
+  <script src="js/telemetria.js"></script>
+  <script src="js/catalogo.js"></script>
+  <script src="js/diagnostico.js?v=xt34"></script>
+  <script src="js/parear.js?v=xt32"></script>
+  <script src="js/xtream.js?v=xt73"></script>
+  <script src="js/multiview.js?v=xt47"></script>
+  <script src="js/catchup.js"></script>
+  <script src="js/player-vod.js?v=xt42"></script>
+  <script src="js/player.js?v=xt59"></script>
+  <script src="js/app.js?v=xt90"></script>
+</body>
+</html>

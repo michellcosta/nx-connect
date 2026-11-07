@@ -1,0 +1,12 @@
+name = "saimo-webos"
+main = "src/index.js"
+compatibility_date = "2024-10-01"
+
+# npx wrangler secret put TMDB_KEY
+
+# npx wrangler kv namespace create RANKING
+# Depois substitua o id abaixo.
+[[kv_namespaces]]
+binding = "RANKING"
+id = "saimo-webos-ranking"
+preview_id = "saimo-webos-ranking"
