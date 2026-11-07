@@ -21,6 +21,7 @@ var SaimoDiagnostico = (function () {
   function maskUrl(url) {
     if (!url) return '';
     var s = String(url);
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) return s;
     try {
       if (s.indexOf('url=') !== -1) {
         var enc = s.split('url=')[1].split('&')[0];
@@ -78,6 +79,69 @@ var SaimoDiagnostico = (function () {
       local: ehLocal(),
       webos: webos
     };
+  }
+
+  // ── Vigia de memória: amostra a cada 60 s e avisa quando o heap não volta ──
+  var _memTimer = null;
+  var _memAmostras = [];
+  var _memUltimoAviso = 0;
+
+  function memoriaMB() {
+    try {
+      if (window.performance && performance.memory && performance.memory.usedJSHeapSize > 0) {
+        return Math.round(performance.memory.usedJSHeapSize / 1048576);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function amostrarMemoria() {
+    var mb = memoriaMB();
+    if (mb == null) return;
+    var agora = Date.now();
+    _memAmostras.push({ t: agora, mb: mb });
+    if (_memAmostras.length > 30) _memAmostras.shift();
+    if (_memAmostras.length < 15) return;
+    var base = Infinity;
+    for (var i = 0; i < _memAmostras.length; i++) {
+      if (_memAmostras[i].mb < base) base = _memAmostras[i].mb;
+    }
+    var folga = Math.max(30, Math.round(base * 0.5));
+    var sustentado = true;
+    for (var j = _memAmostras.length - 5; j < _memAmostras.length; j++) {
+      if (_memAmostras[j].mb - base < folga) {
+        sustentado = false;
+        break;
+      }
+    }
+    if (sustentado && agora - _memUltimoAviso > 30 * 60 * 1000) {
+      _memUltimoAviso = agora;
+      logEvento('memoria_crescendo', 'mínima ' + base + ' MB → atual ' + mb + ' MB (últimos ~30 min)');
+    }
+  }
+
+  function vigiarMemoria() {
+    if (_memTimer || memoriaMB() == null) return;
+    _memTimer = setInterval(amostrarMemoria, 60000);
+    setTimeout(function () {
+      var mb = memoriaMB();
+      if (mb != null) linha('memória inicial: ' + mb + ' MB');
+    }, 8000);
+  }
+
+  function fotoMemoria(rotulo) {
+    var mb = memoriaMB();
+    if (mb == null) return null;
+    logEvento('memoria_foto', (rotulo ? rotulo + ': ' : '') + mb + ' MB');
+    return mb;
+  }
+
+  function picoMemoriaMB() {
+    var pico = 0;
+    for (var i = 0; i < _memAmostras.length; i++) {
+      if (_memAmostras[i].mb > pico) pico = _memAmostras[i].mb;
+    }
+    return pico;
   }
 
   function pintarPainel() {
@@ -181,6 +245,8 @@ var SaimoDiagnostico = (function () {
     linha('log ligado em ' + location.href);
   }
 
+  vigiarMemoria();
+
   return {
     maskUrl: maskUrl,
     detectarWebOS: detectarWebOS,
@@ -189,14 +255,21 @@ var SaimoDiagnostico = (function () {
     sondar: sondar,
     ehLocal: ehLocal,
     abrirPainel: abrirPainel,
+    memoriaMB: memoriaMB,
+    fotoMemoria: fotoMemoria,
+    amostrasMemoria: function () {
+      return _memAmostras.slice();
+    },
 
     obterRelatorio: function (player) {
       var sys = detectarWebOS();
+      var mb = memoriaMB();
+      var pico = picoMemoriaMB();
       return {
         sistema: sys.sistema,
         resolucao: sys.resolucao,
-        memoriaJS: (window.performance && performance.memory) ?
-          Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB' : 'N/A',
+        memoriaJS: mb != null ? mb + ' MB' : 'N/A',
+        picoMemoriaJS: (pico || mb) ? (pico || mb) + ' MB' : 'N/A',
         engineAtiva: (player && player.getEngineName) ? player.getEngineName() : 'N/A',
         videoPronto: !!(player && player.video && player.video.readyState >= 2),
         bufferSegundos: (player && player.getBufferSeconds) ? player.getBufferSeconds().toFixed(1) + 's' : '0s',
