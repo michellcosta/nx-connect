@@ -162,6 +162,7 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
       if (_this.zone === "resume" || _this.zone === "idlePrompt" || _this.zone === "settings") return;
       if (!_this.pausaUsuario) return;
       _this.checkSkipMarks();
+      _this.esconderBotaoPular();
       _this.mostrarPausa(true);
       _this.atualizarTransport();
       _this.mostrarFaixaPlay();
@@ -1214,7 +1215,7 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
     this.dom.container.classList.remove("hidden");
     this.dom.container.classList.remove("is-chrome-off");
     this.dom.container.classList.toggle("is-progress-only", !this.transportAberto);
-    if (this.temPularDisponivel() && this.dom.skipBtn) {
+    if (!this.video.paused && this.temPularDisponivel() && this.dom.skipBtn) {
       this.dom.skipBtn.classList.remove("hidden");
       this.skipVisivel = true;
     }
