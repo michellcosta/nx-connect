@@ -66,18 +66,30 @@ var SaimoExtra = {
       if (x.norm === slug || x.norm.length < 4) return false;
       return x.norm.indexOf(slug) !== -1 || slug.indexOf(x.norm) !== -1;
     });
-    var escolher = function escolher(grupo, maisLongo) {
+    var semNumero = slug.replace(/\d+$/, "");
+    var prefixo = [];
+    if (semNumero.length >= 4 && semNumero !== slug) {
+      prefixo = lista.filter(function (x) {
+        return x.norm.indexOf(semNumero) === 0;
+      });
+    }
+    var escolher = function escolher(grupo, maisLongo, exigirEpg) {
       var okEpg = grupo.filter(function (x) {
         return _this.epgConfere(x.canal, casa, fora);
       });
+      if (exigirEpg && !okEpg.length) return null;
       var finalistas = okEpg.length ? okEpg : grupo;
       finalistas.sort(function (a, b) {
         return maisLongo ? b.norm.length - a.norm.length : a.norm.length - b.norm.length;
       });
       return finalistas[0] ? finalistas[0].canal : null;
     };
-    if (exatas.length) return escolher(exatas, false);
-    if (contendo.length) return escolher(contendo, true);
+    if (exatas.length) return escolher(exatas, false, false);
+    if (contendo.length) return escolher(contendo, true, false);
+    if (prefixo.length) {
+      var generico = /^(canal|canais|tv|channel)$/.test(semNumero);
+      return escolher(prefixo, true, generico);
+    }
     return null;
   },
   epgConfere: function epgConfere(canal, casa, fora) {
