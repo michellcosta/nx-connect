@@ -85,6 +85,10 @@ body {
   z-index: 3;
 }
 
+.home-header .logo-area {
+  display: none;
+}
+
 .logo-area {
   display: flex;
   align-items: center;

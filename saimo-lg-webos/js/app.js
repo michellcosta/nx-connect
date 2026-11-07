@@ -13264,3 +13264,17 @@ document.addEventListener("DOMContentLoaded", function () {
   };
   if (window.SaimoAbertura) SaimoAbertura.quandoTerminar(iniciarApp);else iniciarApp();
 });
+
+/* Ajusta a escala do app quando a janela for mais estreita que o design de TV (1920).
+   Na TV a escala fica em 1 e nada muda; no navegador, janelas menores veem o app inteiro. */
+function ajustarEscalaApp() {
+  var escala = Math.min(1, window.innerWidth / 1920);
+  if (escala < 1) {
+    document.body.style.transformOrigin = "top left";
+    document.body.style.transform = "scale(" + escala + ")";
+  } else {
+    document.body.style.transform = "";
+  }
+}
+window.addEventListener("resize", ajustarEscalaApp);
+ajustarEscalaApp();
