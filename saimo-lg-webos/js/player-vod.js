@@ -112,6 +112,15 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
         self.ativarChip(chip);
       });
     }
+    if (this.dom.skipBtn) {
+      this.dom.skipBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (!self.active || !self.skipVisivel) return;
+        self.base.skipIntro();
+        self.esconderBotaoPular();
+        if (self.zone === "skip") self.zone = "controls";
+      });
+    }
   };
   _proto.bindVideoEvents = function bindVideoEvents() {
     var _this = this;
@@ -152,6 +161,7 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
       _this.saveProgressNow();
       if (_this.zone === "resume" || _this.zone === "idlePrompt" || _this.zone === "settings") return;
       if (!_this.pausaUsuario) return;
+      _this.checkSkipMarks();
       _this.mostrarPausa(true);
       _this.atualizarTransport();
       _this.mostrarFaixaPlay();
@@ -623,7 +633,7 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
       }
     } else {
       this.skipJaMostrado = false;
-      if (!this.isOSDVisible()) this.esconderBotaoPular();
+      this.esconderBotaoPular();
       if (this.dom.hintSkip) this.dom.hintSkip.textContent = "OK longo · menu";
     }
 
