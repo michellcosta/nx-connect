@@ -49,14 +49,36 @@ var SaimoExtra = {
     if (m && m[1].indexOf("globo") === 0 && m[1].length > 5) return "Globo " + m[1].slice(5).toUpperCase();
     return slug.charAt(0).toUpperCase() + slug.slice(1);
   },
-  canalDo: function canalDo(url, canais) {
+  canalDo: function canalDo(url, canais, casa, fora) {
     var _this = this;
-    var fim = String(url || "").split("?")[0].split("/").pop() || "";
+    var fim = String(url || "").split("?")[0].split("/").pop().replace(/\.[a-z0-9]{2,5}$/i, "") || "";
     var slug = this.normCanal(fim);
     if (!slug || slug.length < 3) return null;
-    return (canais || []).find(function (c) {
-      return _this.normCanal(c.name) === slug;
-    }) || null;
+    var lista = (canais || []).map(function (c) {
+      return { canal: c, norm: _this.normCanal(c.name) };
+    }).filter(function (x) {
+      return x.norm && x.norm.length >= 2;
+    });
+    var exatas = lista.filter(function (x) {
+      return x.norm === slug;
+    });
+    var contendo = lista.filter(function (x) {
+      if (x.norm === slug || x.norm.length < 4) return false;
+      return x.norm.indexOf(slug) !== -1 || slug.indexOf(x.norm) !== -1;
+    });
+    var escolher = function escolher(grupo, maisLongo) {
+      var okEpg = grupo.filter(function (x) {
+        return _this.epgConfere(x.canal, casa, fora);
+      });
+      var finalistas = okEpg.length ? okEpg : grupo;
+      finalistas.sort(function (a, b) {
+        return maisLongo ? b.norm.length - a.norm.length : a.norm.length - b.norm.length;
+      });
+      return finalistas[0] ? finalistas[0].canal : null;
+    };
+    if (exatas.length) return escolher(exatas, false);
+    if (contendo.length) return escolher(contendo, true);
+    return null;
   },
   epgConfere: function epgConfere(canal, casa, fora) {
     var _this2 = this;
@@ -103,8 +125,8 @@ var SaimoExtra = {
         if (!url) return;
         if (!canalNome) canalNome = _this3.rotuloDoSlug(url);
         if (canal) return;
-        var achado = _this3.canalDo(url, canais || []);
-        if (achado && _this3.epgConfere(achado, casa.name, fora.name)) {
+        var achado = _this3.canalDo(url, canais || [], casa.name, fora.name);
+        if (achado) {
           canal = achado;
           canalNome = achado.name;
         }
