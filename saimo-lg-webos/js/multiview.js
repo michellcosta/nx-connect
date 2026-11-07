@@ -162,7 +162,9 @@ var SaimoMultiview = (function () {
       if (!novoCanal) return;
 
       if (j.player && j.player.hls) {
-        try { j.player.hls.destroy(); } catch (e) {}
+        try { j.player.hls.destroy(); } catch (e) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("multiview_cleanup_erro", "hls.destroy: " + ((e && e.message) || ""));
+        }
       }
       j.canal = novoCanal;
       j.badge.textContent = novoCanal.name;
@@ -188,14 +190,18 @@ var SaimoMultiview = (function () {
       for (var i = 0; i < _jogadores.length; i++) {
         var j = _jogadores[i];
         if (j && j.player && j.player.hls) {
-          try { j.player.hls.destroy(); } catch (e) {}
+          try { j.player.hls.destroy(); } catch (e) {
+            if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("multiview_cleanup_erro", "hls.destroy: " + ((e && e.message) || ""));
+          }
         }
         if (j && j.video) {
           try {
             j.video.pause();
             j.video.removeAttribute('src');
             j.video.load();
-          } catch (e) {}
+          } catch (e) {
+            if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("multiview_cleanup_erro", "video: " + ((e && e.message) || ""));
+          }
         }
       }
       _jogadores = [];

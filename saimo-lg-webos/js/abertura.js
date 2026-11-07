@@ -21,7 +21,9 @@
     var lista = fila;
     fila = [];
     for (var i = 0; i < lista.length; i++) {
-      try { lista[i](); } catch (e) {}
+      try { lista[i](); } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("abertura_callback_erro", (e && e.message) || "");
+      }
     }
   }
 

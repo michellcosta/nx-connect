@@ -1029,7 +1029,9 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
         };
       }
       localStorage.setItem("saimo_progress", JSON.stringify(map));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_progress: " + ((e && e.message) || ""));
+    }
   }
 
   // ── Tratamento de Teclas do Controle Remoto ───────────────────

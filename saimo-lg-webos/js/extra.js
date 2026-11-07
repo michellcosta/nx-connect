@@ -379,7 +379,9 @@ var SaimoVersao = {
   marcarVisto: function marcarVisto() {
     try {
       localStorage.setItem(this.CHAVE_VISTO, String(Date.now()));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "eventos_visto: " + ((e && e.message) || ""));
+    }
   },
   mostrarSeNovo: function mostrarSeNovo() {},
   verificar: function verificar() {

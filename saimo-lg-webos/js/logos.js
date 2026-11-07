@@ -54,7 +54,9 @@ var SaimoLogos = {
     }
     try {
       localStorage.setItem(this.KEY, JSON.stringify(out));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "logos_cache: " + ((e && e.message) || ""));
+    }
   },
 
   guardar: function (chave, url) {

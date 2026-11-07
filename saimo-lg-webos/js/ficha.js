@@ -738,7 +738,9 @@ var SaimoFicha = {
         localStorage.setItem(this.DISCO_FICHAS, JSON.stringify(d.fichas));
         localStorage.setItem(this.DISCO_TEMPS, JSON.stringify(d.temps));
         localStorage.setItem(this.DISCO_CAPAS, JSON.stringify(d.capas));
-      } catch (e2) {}
+      } catch (e2) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "ficha_cache: " + ((e2 && e2.message) || ""));
+      }
     }
   },
   fichaSalva: function fichaSalva(marca) {

@@ -516,7 +516,9 @@ var SaimoEpg = {
         });
         localStorage.setItem(_this2.CACHE_KEY, JSON.stringify(slim));
         localStorage.setItem(_this2.CACHE_AT, String(Date.now()));
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "epg_cache: " + ((e && e.message) || ""));
+      }
     }, 800);
   },
   parseDur: function parseDur(s) {

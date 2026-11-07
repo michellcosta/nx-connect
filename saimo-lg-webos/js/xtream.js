@@ -815,7 +815,9 @@ var SaimoXtream = (function () {
         ns: contar(cache.series),
         nc: (cache.canais || []).length
       }));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "xtream_cache: " + ((e && e.message) || ""));
+    }
     withIdb(function (db) {
       if (!db) {
         if (done) done(false);

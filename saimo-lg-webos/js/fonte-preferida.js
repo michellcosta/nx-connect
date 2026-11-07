@@ -87,7 +87,9 @@ var SaimoFontePref = {
     };
     try {
       localStorage.setItem(this.KEY, JSON.stringify(mapa));
-    } catch (e3) {}
+    } catch (e3) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "fonte_preferida: " + ((e3 && e3.message) || ""));
+    }
   },
   ordenar: function ordenar(sources, titulo, audioPref) {
     var lista = (sources || []).slice();

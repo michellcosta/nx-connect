@@ -424,7 +424,9 @@ var SaimoPlayer = /*#__PURE__*/function () {
       this.hls = null;
     }
     if (this.mpegts) {
-      try { this.mpegts.pause(); this.mpegts.unload(); this.mpegts.detachMediaElement(); this.mpegts.destroy(); } catch (eM) {}
+      try { this.mpegts.pause(); this.mpegts.unload(); this.mpegts.detachMediaElement(); this.mpegts.destroy(); } catch (eM) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("player_cleanup_erro", "mpegts: " + ((eM && eM.message) || ""));
+      }
       this.mpegts = null;
     }
     var onMediaReady = function onMediaReady() {
@@ -433,7 +435,9 @@ var SaimoPlayer = /*#__PURE__*/function () {
         try {
           _this3.video.currentTime = _this3.initialResumeTime;
           _this3.showStatus("Continuando de " + _this3.formatTime(_this3.initialResumeTime) + "...");
-        } catch (e) {}
+        } catch (e) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("player_retomar_erro", (e && e.message) || "");
+        }
         _this3.initialResumeTime = 0;
       }
       _this3.video.play().catch(function () {});
@@ -921,7 +925,9 @@ var SaimoPlayer = /*#__PURE__*/function () {
       var m = JSON.parse(localStorage.getItem("saimo_engine_pref") || "{}");
       m[this.chaveEngine(host)] = engine;
       localStorage.setItem("saimo_engine_pref", JSON.stringify(m));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_engine_pref: " + ((e && e.message) || ""));
+    }
   };
   _proto.armarWatchdogAoVivo = function armarWatchdogAoVivo() {
     var _this8 = this;

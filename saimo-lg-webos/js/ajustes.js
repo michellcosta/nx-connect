@@ -45,7 +45,9 @@ var SaimoAjustes = {
     var atual = Object.assign(this.ler(), parcial || {});
     try {
       localStorage.setItem(this.KEY, JSON.stringify(atual));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "ajustes: " + ((e && e.message) || ""));
+    }
     this.aplicar(atual);
     return atual;
   },
@@ -62,7 +64,9 @@ var SaimoAjustes = {
   setPin: function setPin(pin) {
     try {
       localStorage.setItem(this.PIN_KEY, String(pin || "0000").slice(0, 4));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_pin: " + ((e && e.message) || ""));
+    }
   },
   aplicar: function aplicar(cfg) {
     cfg = cfg || this.ler();
@@ -111,7 +115,9 @@ var SaimoAjustes = {
     };
     try {
       localStorage.setItem("saimo_fonte_pref", JSON.stringify(mapa));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_fonte_pref: " + ((e && e.message) || ""));
+    }
   },
   hostDe: function hostDe(url) {
     try {

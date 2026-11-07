@@ -135,7 +135,9 @@ var SaimoFontesLive = {
     if (lista.indexOf(host) === -1) lista.push(host);
     try {
       localStorage.setItem(this.USER_KEY, JSON.stringify(lista));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "fontes_bloqueadas: " + ((e && e.message) || ""));
+    }
   },
   reativarTudo: function reativarTudo() {
     var lista = this.bloqueadosPeloUsuario();
@@ -196,7 +198,9 @@ var SaimoFontesLive = {
     }
     try {
       localStorage.setItem(this.LAT_KEY, JSON.stringify(mapa));
-    } catch (e2) {}
+    } catch (e2) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "fonte_lat: " + ((e2 && e2.message) || ""));
+    }
   },
   /**
    * Tira hosts desligados. Depois ordena pelo tempo de abertura
@@ -236,7 +240,9 @@ var SaimoFontesLive = {
     }
     try {
       localStorage.setItem(this.PREFER_KEY, JSON.stringify(mapa));
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "fonte_tocou: " + ((e && e.message) || ""));
+    }
   },
   ordenar: function ordenar(sources, nome) {
     var _this2 = this;

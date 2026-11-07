@@ -599,7 +599,9 @@ var SaimoAPI = {
     if (!this.textoDestaquesOk(text)) return;
     try {
       localStorage.setItem(this.DISCO_DEST, text);
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "api_destaques: " + ((e && e.message) || ""));
+    }
   },
   parseDestaquesTexto: function parseDestaquesTexto(text) {
     var filmesRows = {};

@@ -268,7 +268,9 @@ var SaimoLegendas = {
   guardarIdioma: function guardarIdioma(codigo) {
     try {
       localStorage.setItem("saimo_legenda_idioma", codigo || "");
-    } catch (e) {}
+    } catch (e) {
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_legenda_idioma: " + ((e && e.message) || ""));
+    }
   }
 };
 window.SaimoLegendas = SaimoLegendas;
