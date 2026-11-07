@@ -75,7 +75,7 @@ body {
 .home-header {
   height: auto;
   min-height: 84px;
-  padding: 36px 16px 10px;
+  padding: 36px 80px 10px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -2485,9 +2485,9 @@ body {
   background: transparent;
   color: #e2e8f0;
   border: 2px solid transparent;
-  padding: 12px 8px;
+  padding: 12px 10px;
   border-radius: 999px;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
