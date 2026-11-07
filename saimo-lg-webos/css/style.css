@@ -2238,6 +2238,8 @@ body {
   bottom: 28%;
   transform: translateX(-50%);
   z-index: 4;
+  pointer-events: auto;
+  cursor: pointer;
   background: var(--accent);
   color: #0a0d14;
   border: 3px solid transparent;
