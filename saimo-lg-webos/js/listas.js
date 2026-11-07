@@ -13,9 +13,13 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 var SaimoListas = {
   KEY: "saimo_minhas_listas",
   MAX_LISTAS: 10,
-  MAX_ITENS: 2000,
+  MAX_ITENS: 10000,
   HORAS: 12 * 3600000,
   listas: [],
+  _idbTentou: false,
+  _idbPronto: false,
+  _idbEscritas: 0,
+  _idb: null,
   fold: function fold(s) {
     return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   },
@@ -81,15 +85,115 @@ var SaimoListas = {
     };
   },
   carregar: function carregar() {
+    if (this._idbPronto) return this.listas;
     try {
       var raw = JSON.parse(localStorage.getItem(this.KEY) || "[]");
-      this.listas = Array.isArray(raw) ? raw : [];
-    } catch (e) {
-      this.listas = [];
+      if (Array.isArray(raw)) this.listas = raw;
+    } catch (e) {}
+    if (!this._idbTentou) {
+      this._idbTentou = true;
+      this._conectarIdb();
     }
     return this.listas;
   },
-  salvar: function salvar() {
+  /**
+   * As listas vivem no IndexedDB (espaço de sobra). O localStorage fica só como
+   * cópia de segurança da era antiga e ponto de partida da migração automática.
+   * Em TV sem IndexedDB, tudo segue como antes.
+   */
+  _conectarIdb: function _conectarIdb() {
+    var self = this;
+    if (!window.indexedDB) {
+      this._idbPronto = true;
+      return;
+    }
+    try {
+      var rq = indexedDB.open("saimo_tv", 1);
+      rq.onupgradeneeded = function () {
+        rq.result.createObjectStore("kv");
+      };
+      rq.onsuccess = function () {
+        self._idb = rq.result;
+        self._idb.onerror = function () {};
+        self._carregarIdb();
+      };
+      rq.onerror = function () {
+        self._idb = null;
+        self._idbPronto = true;
+      };
+      rq.onblocked = function () {
+        self._idb = null;
+        self._idbPronto = true;
+      };
+    } catch (e) {
+      this._idb = null;
+      this._idbPronto = true;
+    }
+  },
+  _carregarIdb: function _carregarIdb() {
+    var self = this;
+    if (!this._idb) {
+      this._idbPronto = true;
+      return;
+    }
+    try {
+      var rq = this._idb.transaction("kv").objectStore("kv").get("listas");
+      rq.onsuccess = function () {
+        var salvo = rq.result;
+        var migrando = !Array.isArray(salvo) && self.listas.length && !self._idbEscritas;
+        self._idbPronto = true;
+        if (Array.isArray(salvo) && salvo.length && !self._idbEscritas) {
+          self.listas = salvo;
+        } else if (self._idbEscritas || migrando) {
+          self._gravarIdb(function (ok) {
+            if (migrando && window.SaimoDiagnostico) {
+              SaimoDiagnostico.logEvento(ok ? "listas_migradas" : "armazenamento_erro", ok ? self.listas.length + " lista(s) do localStorage para o IndexedDB" : "migração das listas para o IndexedDB falhou");
+            }
+          });
+        }
+      };
+      rq.onerror = function () {
+        self._idbPronto = true;
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "ler as listas do IndexedDB falhou");
+      };
+    } catch (e) {
+      this._idbPronto = true;
+    }
+  },
+  _gravarIdb: function _gravarIdb(cb) {
+    var self = this;
+    this._idbEscritas++;
+    if (!this._idb || !this._idbPronto) {
+      if (cb) cb(this._salvarLocalStorage());
+      return;
+    }
+    var avisou = false;
+    function falhou(err) {
+      if (avisou) return;
+      avisou = true;
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "IndexedDB: " + ((err && err.message) || ""));
+      if (cb) cb(self._salvarLocalStorage());
+    }
+    try {
+      var tx = this._idb.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(this.listas, "listas");
+      tx.oncomplete = function () {
+        if (!avisou) {
+          avisou = true;
+          if (cb) cb(true);
+        }
+      };
+      tx.onabort = function () {
+        falhou(tx.error);
+      };
+      tx.onerror = function () {
+        falhou(tx.error);
+      };
+    } catch (e) {
+      falhou(e);
+    }
+  },
+  _salvarLocalStorage: function _salvarLocalStorage() {
     var texto = JSON.stringify(this.listas);
     try {
       localStorage.setItem(this.KEY, texto);
@@ -106,6 +210,17 @@ var SaimoListas = {
     } catch (e2) {
       return false;
     }
+  },
+  salvar: function salvar() {
+    var self = this;
+    if (this._idbPronto && this._idb) {
+      this._gravarIdb(function (ok) {
+        if (!ok && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "as listas não persistiram (IndexedDB e localStorage falharam)");
+      });
+      return true;
+    }
+    this._idbEscritas++;
+    return this._salvarLocalStorage();
   },
   lerExtinf: function lerExtinf(linha) {
     var logo = (linha.match(/tvg-logo="([^"]*)"/i) || [])[1] || "";
