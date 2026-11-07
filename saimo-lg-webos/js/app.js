@@ -550,6 +550,13 @@ document.addEventListener("DOMContentLoaded", function () {
     function preencherCanaisAoVivo(canais, cats) {
       liveChannelsAll = (canais || []).slice();
       liveCategories = (cats || ["Todos"]).slice();
+      if (window.SaimoExtra) {
+        SaimoExtra.jogos(liveChannels()).then(function (jogos) {
+          var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
+          paintHook(hoje);
+          if (currentScreen === "jogoshoje") renderJogosHoje();
+        }).catch(function () {});
+      }
     }
     function aplicarCanaisEmbutidos() {
       preencherCanaisAoVivo(canaisEmbutidosLista(), categoriasEmbutidas());
@@ -3512,11 +3519,18 @@ document.addEventListener("DOMContentLoaded", function () {
       setFocus(itensJogosHoje()[jogosHojeIndex]);
     }
     function openJogosHoje() {
-      if (!homeJogosHoje.length || !jogosHojeScreen) return;
+      if (!jogosHojeScreen) return;
       currentScreen = "jogoshoje";
       showScreen("jogoshoje");
       jogosHojeIndex = 0;
-      renderJogosHoje();
+      if (homeJogosHoje.length) renderJogosHoje();
+      if (window.SaimoExtra) {
+        SaimoExtra.jogos(liveChannels()).then(function (jogos) {
+          var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
+          paintHook(hoje);
+          if (currentScreen === "jogoshoje") renderJogosHoje();
+        }).catch(function () {});
+      }
     }
     function activateHook() {
       openJogosHoje();
