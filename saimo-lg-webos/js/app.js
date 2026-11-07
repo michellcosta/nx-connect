@@ -9947,12 +9947,16 @@ document.addEventListener("DOMContentLoaded", function () {
       if (clock && clock.offsetParent) {
         radioMini.classList.remove("flutua");
         clock.parentNode.insertBefore(radioMini, clock);
+        var alvo = clock.parentNode;
+        while (alvo && alvo !== document.body && !(alvo.classList && (alvo.classList.contains("home-header") || alvo.classList.contains("header")))) alvo = alvo.parentNode;
+        if (alvo && alvo.classList) alvo.classList.toggle("com-radio", !!radioAtual);
         return;
       }
       radioMini.classList.add("flutua");
       document.body.appendChild(radioMini);
     }
     function pintarRadioMini(pausada) {
+      encaixarRadioMini();
       if (radioMiniNome) radioMiniNome.textContent = radioAtual ? radioAtual.name : "";
       if (!btnRadioToggle) return;
       var parado = !radioAtual;

@@ -75,12 +75,12 @@ body {
 .home-header {
   height: auto;
   min-height: 84px;
-  padding: 36px 32px 10px;
+  padding: 36px 24px 10px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-wrap: nowrap;
+  gap: 8px;
   position: relative;
   z-index: 3;
 }
@@ -145,8 +145,8 @@ body {
 .radio-mini {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 6px;
+  flex-shrink: 1;
   min-width: 0;
 }
 
@@ -158,8 +158,9 @@ body {
 }
 
 .radio-mini-nome {
+  min-width: 0;
   max-width: 340px;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   color: #fff;
   white-space: nowrap;
@@ -167,14 +168,19 @@ body {
   text-overflow: ellipsis;
 }
 
+.home-header.com-radio .clock,
+.header.com-radio .clock {
+  display: none;
+}
+
 .radio-mini-btn {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   border: 3px solid transparent;
   background: rgba(8, 10, 16, 0.92);
   color: #fff;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
   display: inline-flex;
@@ -185,8 +191,8 @@ body {
 }
 
 .radio-mini-btn svg {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: block;
 }
 
@@ -2321,14 +2327,14 @@ body {
 }
 
 .home-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 16px;
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
   object-fit: cover;
 }
 
 .home-header .app-title {
-  font-size: 42px;
+  font-size: 34px;
 }
 
 .home-header .search-btn {
@@ -2338,10 +2344,17 @@ body {
 }
 
 .home-header .header-right {
-  gap: 12px;
-  flex-shrink: 0;
+  gap: 8px;
+  flex-shrink: 1;
+  min-width: 0;
   margin-left: auto;
   justify-content: flex-end;
+}
+
+.home-header .search-btn,
+.home-header .home-icon-btn,
+.home-header .clock {
+  flex-shrink: 0;
 }
 
 .home-header .home-icon-btn {
@@ -2473,7 +2486,7 @@ body {
   background: transparent;
   color: #e2e8f0;
   border: 2px solid transparent;
-  padding: 12px 16px;
+  padding: 12px 12px;
   border-radius: 999px;
   font-size: 28px;
   font-weight: 700;
