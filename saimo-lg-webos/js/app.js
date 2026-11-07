@@ -376,7 +376,9 @@ document.addEventListener("DOMContentLoaded", function () {
     function saveLastWatched(data) {
       try {
         localStorage.setItem("saimo_history", JSON.stringify(data));
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_history: " + ((e && e.message) || ""));
+      }
     }
     function getLastLive() {
       try {
@@ -394,7 +396,9 @@ document.addEventListener("DOMContentLoaded", function () {
           url: src && src.url,
           timestamp: Date.now()
         }));
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_last_live: " + ((e && e.message) || ""));
+      }
     }
     function canalPorNome(nome) {
       var k = buscaChave(nome);
@@ -458,7 +462,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       try {
         localStorage.setItem("saimo_progress", JSON.stringify(map));
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_progress: " + ((e && e.message) || ""));
+      }
     }
     var player = new SaimoPlayer(videoElement, osdElements, {
       onProgress: function onProgress(channel, currentTime, duration) {
@@ -1182,7 +1188,9 @@ document.addEventListener("DOMContentLoaded", function () {
             preencherPrateleira(browseKind, true);
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("tela_atualizar_erro", (e && e.message) || "");
+      }
     }
     function mesclarLetraXtream(tipo, letra, items) {
       var out = (items || []).slice();
@@ -1261,7 +1269,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (Date.now() >= controleOcupadoAte) {
         try {
           fn();
-        } catch (e) {}
+        } catch (e) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("tarefa_ociosa_erro", (e && e.message) || "");
+        }
         return;
       }
       filaOciosa.push(fn);
@@ -1279,7 +1289,9 @@ document.addEventListener("DOMContentLoaded", function () {
       for (var i = 0; i < lote.length; i++) {
         try {
           lote[i]();
-        } catch (e) {}
+        } catch (e) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("tarefa_ociosa_erro", (e && e.message) || "");
+        }
       }
     }
     var acervoPronto = null;
@@ -2558,7 +2570,9 @@ document.addEventListener("DOMContentLoaded", function () {
       atual[chave] = !!on;
       try {
         localStorage.setItem(HOME_EDIT_KEY, JSON.stringify(atual));
-      } catch (e) {}
+      } catch (e) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "home_blocos: " + ((e && e.message) || ""));
+      }
     }
     function chaveDaFileira(titulo) {
       var nome = String(titulo || "");
@@ -6509,7 +6523,9 @@ document.addEventListener("DOMContentLoaded", function () {
             }
           });
           return;
-        } catch (e) {}
+        } catch (e) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("youtube_abrir_erro", (e && e.message) || "");
+        }
       }
       if (trailerFrame) trailerFrame.src = "https://www.youtube.com/embed/" + infoTrailerKey + "?autoplay=1&rel=0";
       if (trailerOverlay) trailerOverlay.classList.add("active");
@@ -7645,7 +7661,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (arr.length > 30) arr.length = 30;
       try {
         localStorage.setItem(LIVE_RECENT_KEY, JSON.stringify(arr));
-      } catch (e2) {}
+      } catch (e2) {
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "saimo_live_recent: " + ((e2 && e2.message) || ""));
+      }
     }
     function canaisRecentesAoVivo() {
       var lives = liveChannels();
@@ -9722,7 +9740,9 @@ document.addEventListener("DOMContentLoaded", function () {
             localStorage.removeItem("saimo_history");
             localStorage.removeItem("saimo_last_live");
             localStorage.removeItem("saimo_live_recent");
-          } catch (e) {}
+          } catch (e) {
+            if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("limpar_historico_erro", (e && e.message) || "");
+          }
           renderSettings();
           return;
         }
