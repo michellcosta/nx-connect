@@ -20,13 +20,24 @@ var SaimoExtra = {
   escudo: function escudo(url) {
     return String(url || "").replace(/w_\d+,h_\d+/, "w_128,h_128");
   },
+  normCache: Object.create(null),
+  normCacheN: 0,
   normCanal: function normCanal(s) {
-    var n = this.chave(s).replace(/[^a-z0-9]/g, "");
+    var bruto = String(s || "");
+    var cache = this.normCache;
+    if (cache[bruto] !== undefined) return cache[bruto];
+    var n = this.chave(bruto).replace(/[^a-z0-9]/g, "");
     var prev = "";
     while (n && n !== prev) {
       prev = n;
       n = n.replace(/(fullhd|fhd|uhd|h265|hevc|4k|hd|sd)$/g, "");
     }
+    if (this.normCacheN > 20000) {
+      this.normCache = Object.create(null);
+      this.normCacheN = 0;
+    }
+    cache[bruto] = n;
+    this.normCacheN++;
     return n;
   },
   rotuloDoSlug: function rotuloDoSlug(url) {
@@ -49,12 +60,12 @@ var SaimoExtra = {
     if (m && m[1].indexOf("globo") === 0 && m[1].length > 5) return "Globo " + m[1].slice(5).toUpperCase();
     return slug.charAt(0).toUpperCase() + slug.slice(1);
   },
-  canalDo: function canalDo(url, canais, casa, fora) {
+  canalDo: function canalDo(url, canais, casa, fora, listaPronta) {
     var _this = this;
     var fim = String(url || "").split("?")[0].split("/").pop().replace(/\.[a-z0-9]{2,5}$/i, "") || "";
     var slug = this.normCanal(fim);
     if (!slug || slug.length < 3) return null;
-    var lista = (canais || []).map(function (c) {
+    var lista = listaPronta || (canais || []).map(function (c) {
       return { canal: c, norm: _this.normCanal(c.name) };
     }).filter(function (x) {
       return x.norm && x.norm.length >= 2;
@@ -121,6 +132,11 @@ var SaimoExtra = {
   lerAgenda: function lerAgenda(lista, canais) {
     var _this3 = this;
     if (!Array.isArray(lista)) return [];
+    var listaNorm = (canais || []).map(function (c) {
+      return { canal: c, norm: _this3.normCanal(c.name) };
+    }).filter(function (x) {
+      return x.norm && x.norm.length >= 2;
+    });
     var jogos = [];
     var vistos = {};
     lista.forEach(function (o) {
@@ -137,7 +153,7 @@ var SaimoExtra = {
         if (!url) return;
         if (!canalNome) canalNome = _this3.rotuloDoSlug(url);
         if (canal) return;
-        var achado = _this3.canalDo(url, canais || [], casa.name, fora.name);
+        var achado = _this3.canalDo(url, null, casa.name, fora.name, listaNorm);
         if (achado) {
           canal = achado;
           canalNome = achado.name;

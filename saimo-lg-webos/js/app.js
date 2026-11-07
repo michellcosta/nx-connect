@@ -550,13 +550,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function preencherCanaisAoVivo(canais, cats) {
       liveChannelsAll = (canais || []).slice();
       liveCategories = (cats || ["Todos"]).slice();
-      if (window.SaimoExtra) {
-        SaimoExtra.jogos(liveChannels()).then(function (jogos) {
-          var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
-          paintHook(hoje);
-          if (currentScreen === "jogoshoje") renderJogosHoje();
-        }).catch(function () {});
-      }
+      agendarRefreshJogos();
     }
     function aplicarCanaisEmbutidos() {
       preencherCanaisAoVivo(canaisEmbutidosLista(), categoriasEmbutidas());
@@ -606,6 +600,22 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
     var liveChannelsAll = [];
+    var jogosRefreshTimer = null;
+    function refreshJogosAgora() {
+      if (!window.SaimoExtra) return;
+      SaimoExtra.jogos(liveChannels()).then(function (jogos) {
+        var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
+        paintHook(hoje);
+        if (currentScreen === "jogoshoje") renderJogosHoje();
+      }).catch(function () {});
+    }
+    function agendarRefreshJogos() {
+      if (jogosRefreshTimer) clearTimeout(jogosRefreshTimer);
+      jogosRefreshTimer = setTimeout(function () {
+        jogosRefreshTimer = null;
+        refreshJogosAgora();
+      }, 1500);
+    }
     var liveCategories = ["Todos"];
     var aovivoMaisNome = "";
     var aovivoMaisAbaAntes = -1;
