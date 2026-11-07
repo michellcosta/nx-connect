@@ -5153,6 +5153,7 @@ body {
   height: 14px;
   padding: 10px 0;
   cursor: pointer;
+  pointer-events: auto;
   transition: height 150ms ease;
 }
 .vod-seekbar.is-focused .vod-seek-track {

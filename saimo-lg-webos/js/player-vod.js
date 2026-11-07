@@ -133,6 +133,17 @@ var SaimoVodPlayer = /*#__PURE__*/function () {
         self.acionarBotao(par[1]);
       });
     });
+    if (this.dom.seekbar) {
+      this.dom.seekbar.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (!self.active || !self.podeBuscar()) return;
+        var box = self.dom.seekbar.getBoundingClientRect();
+        if (!box.width) return;
+        var pct = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width));
+        self.seekTo(pct * (self.video.duration || 0));
+        self.showOSD(4000);
+      });
+    }
   };
   _proto.bindVideoEvents = function bindVideoEvents() {
     var _this = this;
