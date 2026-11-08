@@ -6742,7 +6742,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function _openInfoPanel() {
       _openInfoPanel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(item) {
-        var local, fontesOrdenadas, prog, ficha, n, n2, _t12;
+        var local, fontesOrdenadas, prog, ficha, n, n2, _t12, fichaXtreamInfo;
         return _regenerator().w(function (_context19) {
           while (1) switch (_context19.p = _context19.n) {
             case 0:
@@ -6852,6 +6852,30 @@ document.addEventListener("DOMContentLoaded", function () {
               return _context19.a(2);
             case 8:
               if (infoItem !== item) return _context19.a(2);
+              if (!ficha && item.xtreamId && window.SaimoXtream && SaimoXtream.infoDe) {
+                _context19.n = 12;
+                break;
+              }
+              if (!ficha) ficha = fichaMinimaDoItem(item);
+              if (!ficha) {
+                _context19.n = 9;
+                break;
+              }
+              pintarFichaNaInfo(ficha, item);
+              _context19.n = 11;
+              break;
+            case 12:
+              _context19.n = 13;
+              return SaimoXtream.infoDe(item.xtreamId);
+            case 13:
+              fichaXtreamInfo = _context19.v;
+              if (infoItem !== item) return _context19.a(2);
+              if (fichaXtreamInfo) {
+                ficha = fichaXtreamInfo;
+                pintarFichaNaInfo(ficha, item);
+                _context19.n = 11;
+                break;
+              }
               if (!ficha) ficha = fichaMinimaDoItem(item);
               if (!ficha) {
                 _context19.n = 9;

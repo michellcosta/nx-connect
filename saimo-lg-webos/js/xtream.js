@@ -1237,6 +1237,53 @@ var SaimoXtream = (function () {
         if (typeof cb === 'function') cb();
       });
     },
+    infoDe: function infoDe(vodId) {
+      return new Promise(function (resolve) {
+        if (!vodId) {
+          resolve(null);
+          return;
+        }
+        if (cache.infos && cache.infos[vodId]) {
+          resolve(cache.infos[vodId]);
+          return;
+        }
+        if (!perfilAtivo) {
+          resolve(null);
+          return;
+        }
+        xhrJSON(apiUrl(perfilAtivo, 'action=get_vod_info&vod_id=' + encodeURIComponent(vodId)), 15000, function (err, data) {
+          var ficha = null;
+          if (!err && data && data.info) {
+            var info = data.info;
+            var capa = info.movie_image || info.cover_big || "";
+            var duracao = 0;
+            if (info.duration) {
+              if (String(info.duration).indexOf(":") !== -1) {
+                var partesD = String(info.duration).split(":");
+                duracao = (parseInt(partesD[0], 10) || 0) * 60 + (parseInt(partesD[1], 10) || 0);
+              } else duracao = parseInt(info.duration, 10) || 0;
+            }
+            ficha = {
+              sinopse: info.plot || info.description || "",
+              ano: String(info.releasedate || info.year || "").slice(0, 4),
+              nota: parseFloat(info.rating) || 0,
+              generos: String(info.genre || "").split(/[,/]/).map(function (g) { return g.trim(); }).filter(Boolean),
+              capa: capa,
+              fundo: info.backdrop_path && info.backdrop_path.length ? info.backdrop_path[0] : capa,
+              elenco: String(info.cast || "").split(/,\s*/).filter(Boolean),
+              frase: "",
+              duracao: duracao,
+              classificacao: "",
+              assinatura: String(info.director || ""),
+              produtora: String(info.production_company || "")
+            };
+            if (!cache.infos) cache.infos = {};
+            cache.infos[vodId] = ficha;
+          }
+          resolve(ficha);
+        });
+      });
+    },
     cacheValido: cacheValido,
     ultimaSync: function () { return cache.ts || 0; },
     baixando: function () { return syncEmCurso; },
