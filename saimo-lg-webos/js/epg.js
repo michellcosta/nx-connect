@@ -404,6 +404,15 @@ var SaimoEpg = {
     if (/^band/.test(n)) return "band";
     return "";
   },
+  ehDeListaImportada: function ehDeListaImportada(canal) {
+    if (!canal || typeof canal !== "object") return false;
+    if (canal.suaLista) return true;
+    var fontes = canal.sources || [];
+    for (var i = 0; i < fontes.length; i++) {
+      if (fontes[i] && (fontes[i].suaLista || fontes[i].origem === "lista")) return true;
+    }
+    return false;
+  },
   pulaGrade: function pulaGrade(nome) {
     var n = this.norm(nome);
     return /^(a fazenda|amazon prime|prime video|apple tv|appletv|disney|cine sky|dazn|caze|goat|campeonato|eventos extras|formula 1|ufc|onefootball|nba league|hbo max|max(?:\s|$))/.test(n) || /\bsinal\s+\d/.test(n);
@@ -1256,6 +1265,11 @@ var SaimoEpg = {
       _this12.ensure().then(function () {
         var local = _this12.listaLocal(nome);
         if (_this12.visto[key] || local.length && _this12.temSinopse(local) && !_this12.precisaPagina(local)) {
+          resolve(local);
+          return;
+        }
+        if (_this12.ehDeListaImportada(canal) || _this12.fila.length >= 300) {
+          _this12.visto[key] = 1;
           resolve(local);
           return;
         }
