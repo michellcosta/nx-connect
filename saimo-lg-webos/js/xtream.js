@@ -485,6 +485,12 @@ var SaimoXtream = (function () {
     next();
   }
 
+  function fmtMbBaixado(bytes, total) {
+    var mb = Math.round((bytes || 0) / 104857.6) / 10;
+    var msg = mb + ' MB';
+    if (total) msg += ' de ' + Math.round(total / 104857.6) / 10 + ' MB';
+    return msg;
+  }
   function xhrJSON(url, timeoutMs, callback, jaTentouProxy, onProg) {
     try {
       var x = new XMLHttpRequest();
@@ -500,11 +506,17 @@ var SaimoXtream = (function () {
       }
       if (onProg && x.addEventListener) {
         x.addEventListener('progress', function (ev) {
-          if (ev && ev.lengthComputable && ev.total) onProg(ev.loaded / ev.total);
+          if (!ev) return;
+          if (ev.lengthComputable && ev.total) onProg(ev.loaded / ev.total, ev.loaded, ev.total);
+          else if (ev.loaded) onProg(-1, ev.loaded, 0);
         });
       }
       x.onload = function () {
         if (x.status >= 200 && x.status < 300) {
+          var grande = x.responseText && x.responseText.length > 3e6;
+          if (grande) {
+            avisarProgresso(progressoPct, 'Catálogo grande (' + fmtMbBaixado(x.responseText.length) + '). Lendo… a tela pode travar por até 1 minuto.');
+          }
           try {
             var data = JSON.parse(x.responseText);
             callback(null, data);
@@ -1395,19 +1407,19 @@ var SaimoXtream = (function () {
         }
         xhrJSON(apiUrl(ok, 'action=get_live_categories'), 20000, function (eCl, liveCats) {
           pintarBarra('Baixando canais ao vivo…');
-          xhrJSON(apiUrl(ok, 'action=get_live_streams'), 90000, function (eL, lives) {
-            var mapL = mapaCategorias(asArray(liveCats));
-            var listaL = asArray(lives);
-            cache.canais = [];
-            var i;
-            for (i = 0; i < listaL.length; i++) registrarCanal(listaL[i], mapL, ok);
-            partes.live = 1;
-            pintarBarra('Canais ok. Esperando filmes e séries…');
-            partePronta();
-          }, false, function (frac) {
-            partes.live = Math.max(partes.live, 0.15 + frac * 0.8);
-            pintarBarra('Baixando canais ao vivo…');
-          });
+        xhrJSON(apiUrl(ok, 'action=get_live_streams'), 90000, function (eL, lives) {
+          var mapL = mapaCategorias(asArray(liveCats));
+          var listaL = asArray(lives);
+          cache.canais = [];
+          var i;
+          for (i = 0; i < listaL.length; i++) registrarCanal(listaL[i], mapL, ok);
+          partes.live = 1;
+          pintarBarra('Canais ok. Esperando filmes e séries…');
+          partePronta();
+        }, false, function (frac, mb, total) {
+          partes.live = Math.max(partes.live, frac >= 0 ? 0.15 + frac * 0.8 : 0.15);
+          pintarBarra('Baixando canais ao vivo… ' + fmtMbBaixado(mb, total));
+        });
         });
         xhrJSON(apiUrl(ok, 'action=get_vod_categories'), 20000, function (eCv, vodCats) {
           xhrJSON(apiUrl(ok, 'action=get_series_categories'), 20000, function (eCs, serCats) {
@@ -1435,13 +1447,13 @@ var SaimoXtream = (function () {
                 partes.vod = 1;
                 pintarBarra('Filmes e séries ok.');
                 partePronta();
-              }, false, function (frac) {
-                partes.vod = Math.max(partes.vod, 0.55 + frac * 0.4);
-                pintarBarra('Baixando séries…');
+              }, false, function (frac, mb, total) {
+                partes.vod = Math.max(partes.vod, frac >= 0 ? 0.55 + frac * 0.4 : 0.55);
+                pintarBarra('Baixando séries… ' + fmtMbBaixado(mb, total));
               });
-            }, false, function (frac) {
-              partes.vod = Math.max(partes.vod, 0.1 + frac * 0.4);
-              pintarBarra('Baixando filmes…');
+            }, false, function (frac, mb, total) {
+              partes.vod = Math.max(partes.vod, frac >= 0 ? 0.1 + frac * 0.4 : 0.1);
+              pintarBarra('Baixando filmes… ' + fmtMbBaixado(mb, total));
             });
           });
         });
