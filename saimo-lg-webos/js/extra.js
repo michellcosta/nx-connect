@@ -153,12 +153,30 @@ var SaimoExtra = {
         if (!url) return;
         if (!canalNome) canalNome = _this3.rotuloDoSlug(url);
         if (canal) return;
-        var achado = _this3.canalDo(url, null, casa.name, fora.name, listaNorm);
+        var achado = _this3.canalDo(url, canais || [], casa.name, fora.name, listaNorm);
         if (achado) {
           canal = achado;
           canalNome = achado.name;
         }
       });
+      if (!canal && canalNome) {
+        var alvo = _this3.normCanal(canalNome);
+        if (alvo && alvo.length >= 4) {
+          var porNome = (canais || []).filter(function (c) {
+            var n = _this3.normCanal(c.name);
+            if (n === alvo) return true;
+            return n.length >= 4 && (n.indexOf(alvo) !== -1 || alvo.indexOf(n) !== -1);
+          });
+          porNome.sort(function (a, b) {
+            var ea = _this3.normCanal(a.name) === alvo ? 0 : 1;
+            var eb = _this3.normCanal(b.name) === alvo ? 0 : 1;
+            if (ea !== eb) return ea - eb;
+            return _this3.normCanal(b.name).length - _this3.normCanal(a.name).length;
+          });
+          canal = porNome[0] || null;
+          if (canal) canalNome = canal.name;
+        }
+      }
       var id = casa.name + " x " + fora.name + "|" + inicio;
       if (vistos[id]) return;
       vistos[id] = 1;
