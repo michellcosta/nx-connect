@@ -4186,8 +4186,63 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return out;
     }
+    function itensColecaoDasListas(tipo) {
+      if (!window.SaimoListas) return [];
+      var regexTipo = tipo === "animes" ? /anime/i : /dorama|doramas/i;
+      var grupos = Object.create(null);
+      var nomes = Object.create(null);
+      SaimoListas.cada(function (it) {
+        if (it.kind !== "episode") return;
+        var sondagem = { title: it.name, name: it.name, category: it.group || "" };
+        var nomeLimpo = limparNome(it.name);
+        if (!regexTipo.test(nomeLimpo + " " + (it.group || "")) && !(tipo === "animes" && itemPareceAnime(sondagem)) && !(tipo === "doramas" && /dorama/i.test(nomeLimpo + " " + (it.group || "")))) return;
+        var k = fold(nomeLimpo);
+        if (!k) return;
+        var grupo = grupos[k];
+        if (!grupo) {
+          grupo = grupos[k] = {
+            type: "series",
+            title: nomeLimpo,
+            name: nomeLimpo,
+            posterUrl: it.logo || "",
+            logo: it.logo || "",
+            category: it.group || "",
+            episodes: [],
+            colecao: tipo,
+            marca: tipo === "animes" ? "a" : "d",
+            suaLista: true
+          };
+          nomes[k] = it.name;
+          marcarColecaoItem(grupo, tipo);
+        }
+        if (!grupo.posterUrl && it.logo) grupo.posterUrl = it.logo;
+        grupo.episodes.push({
+          season: parseInt(it.season, 10) || 1,
+          episode: parseInt(it.episode, 10) || grupo.episodes.length + 1,
+          title: it.name,
+          sources: [SaimoListas.fonte(it.url, {
+            referer: it.referer,
+            agent: it.agent
+          })]
+        });
+      });
+      var out = [];
+      var k;
+      for (k in grupos) {
+        if (!Object.prototype.hasOwnProperty.call(grupos, k)) continue;
+        var serie = grupos[k];
+        serie.title = nomes[k] || serie.title;
+        if (!itemTemPlay(serie, tipo)) continue;
+        serie.episodes.sort(function (a, b) {
+          return a.season - b.season || a.episode - b.episode;
+        });
+        out.push(serie);
+      }
+      return out;
+    }
     function colherColecaoLocal(tipo) {
       if (tipo === "animes") mesclarColecao("animes", itensAnimeDasFichas());
+      mesclarColecao(tipo, itensColecaoDasListas(tipo));
       mesclarColecao(tipo, listarXtreamColecao(tipo));
       if (colecaoCache[tipo] && colecaoCache[tipo].length) {
         colecaoCache[tipo] = colecaoCache[tipo].filter(function (it) {
