@@ -1,5 +1,88 @@
 "use strict";
 
+/* TEMP — detector v2: última função a entrar sem sair (remover após diagnóstico) */
+(function () {
+  window.__ultimoEnter = "(nenhuma)";
+  window.__ultimoEnterMs = 0;
+  var envolver = function (objeto, nomeMetodo, rotulo) {
+    if (!objeto || typeof objeto[nomeMetodo] !== "function") return;
+    var original = objeto[nomeMetodo].bind(objeto);
+    objeto[nomeMetodo] = function () {
+      window.__ultimoEnter = rotulo;
+      window.__ultimoEnterMs = Math.round(performance.now());
+      return original.apply(null, arguments);
+    };
+  };
+  var ligar = function ligar() {
+    if (window.SaimoExtra) {
+      envolver(window.SaimoExtra, "jogos", "Extra.jogos");
+      envolver(window.SaimoExtra, "lerAgenda", "Extra.lerAgenda");
+      envolver(window.SaimoExtra, "canalDo", "Extra.canalDo");
+      envolver(window.SaimoExtra, "json", "Extra.json");
+      envolver(window.SaimoExtra, "texto", "Extra.texto");
+      envolver(window.SaimoExtra, "rotuloDoSlug", "Extra.rotuloDoSlug");
+      envolver(window.SaimoExtra, "normCanal", "Extra.normCanal");
+      envolver(window.SaimoExtra, "chave", "Extra.chave");
+      envolver(window.SaimoExtra, "canaisDeHoje", "Extra.canaisDeHoje");
+      envolver(window.SaimoExtra, "aoVivo", "Extra.aoVivo");
+    }
+    if (window.SaimoEpg) {
+      envolver(window.SaimoEpg, "ensure", "Epg.ensure");
+      envolver(window.SaimoEpg, "aplicarJson", "Epg.aplicarJson");
+      envolver(window.SaimoEpg, "guardar", "Epg.guardar");
+      envolver(window.SaimoEpg, "listaLocal", "Epg.listaLocal");
+      envolver(window.SaimoEpg, "programas", "Epg.programas");
+      envolver(window.SaimoEpg, "baixarCanal", "Epg.baixarCanal");
+      envolver(window.SaimoEpg, "guiaHtml", "Epg.guiaHtml");
+      envolver(window.SaimoEpg, "meuguiaHtml", "Epg.meuguiaHtml");
+      envolver(window.SaimoEpg, "lerCache", "Epg.lerCache");
+      envolver(window.SaimoEpg, "norm", "Epg.norm");
+      envolver(window.SaimoEpg, "slug", "Epg.slug");
+      envolver(window.SaimoEpg, "filtrar", "Epg.filtrar");
+      envolver(window.SaimoEpg, "decode", "Epg.decode");
+      envolver(window.SaimoEpg, "fold", "Epg.fold");
+      envolver(window.SaimoEpg, "temSinopse", "Epg.temSinopse");
+      envolver(window.SaimoEpg, "precisaPagina", "Epg.precisaPagina");
+      envolver(window.SaimoEpg, "marcaSlug", "Epg.marcaSlug");
+      envolver(window.SaimoEpg, "pulaGrade", "Epg.pulaGrade");
+    }
+    if (window.SaimoListas) {
+      envolver(window.SaimoListas, "carregar", "Listas.carregar");
+      envolver(window.SaimoListas, "parse", "Listas.parse");
+      envolver(window.SaimoListas, "classificar", "Listas.classificar");
+      envolver(window.SaimoListas, "canais", "Listas.canais");
+      envolver(window.SaimoListas, "cada", "Listas.cada");
+      envolver(window.SaimoListas, "soltos", "Listas.soltos");
+      envolver(window.SaimoListas, "atualizarSePreciso", "Listas.atualizarSePreciso");
+      envolver(window.SaimoListas, "baixar", "Listas.baixar");
+      envolver(window.SaimoListas, "chave", "Listas.chave");
+      envolver(window.SaimoListas, "casa", "Listas.casa");
+      envolver(window.SaimoListas, "limparNome", "Listas.limparNome");
+      envolver(window.SaimoListas, "limparGrupo", "Listas.limparGrupo");
+      envolver(window.SaimoListas, "semAno", "Listas.semAno");
+      envolver(window.SaimoListas, "fold", "Listas.fold");
+      envolver(window.SaimoListas, "adulto", "Listas.adulto");
+      envolver(window.SaimoListas, "fontesFilme", "Listas.fontesFilme");
+      envolver(window.SaimoListas, "juntarEpisodios", "Listas.juntarEpisodios");
+      envolver(window.SaimoListas, "garantirIndice", "Listas.garantirIndice");
+    }
+    if (window.SaimoCanaisAoVivo) {
+      envolver(window.SaimoCanaisAoVivo, "mesclar", "Canais.mesclar");
+      envolver(window.SaimoCanaisAoVivo, "chave", "Canais.chave");
+    }
+    if (window.SaimoFicha) {
+      envolver(window.SaimoFicha, "ensureIndex", "Ficha.ensureIndex");
+      envolver(window.SaimoFicha, "localDe", "Ficha.localDe");
+      envolver(window.SaimoFicha, "de", "Ficha.de");
+      envolver(window.SaimoFicha, "metaDe", "Ficha.metaDe");
+      envolver(window.SaimoFicha, "capaDe", "Ficha.capaDe");
+      envolver(window.SaimoFicha, "generosDe", "Ficha.generosDe");
+    }
+    if (window.SaimoCatalogo) envolver(window.SaimoCatalogo, "contagemSecao", "Catalogo.contagemSecao");
+  };
+  ligar();
+  document.addEventListener("DOMContentLoaded", ligar);
+})();
 
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i.return) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
