@@ -9789,7 +9789,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
       if (settingsVer) {
-        var ver = window.SaimoVersao ? SaimoVersao.ATUAL : "1.0.4";
+        var ver = window.SAIMO_VERSAO || (window.SaimoVersao && SaimoVersao.ATUAL) || "1.0.5";
         settingsVer.textContent = "Saimo TV (" + ver + ") - atualizado por NeXus";
       }
       if (settingsIndex >= settingsDefs.length) settingsIndex = 0;

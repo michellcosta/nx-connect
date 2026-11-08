@@ -53,3 +53,10 @@ for (var i = 0; i < files.length; i++) {
 }
 
 console.log('--- Pronto: ' + files.length + ' de src/, ' + transCount + ' transpilados. js/ da pasta não é reescrito. ---');
+
+/* Gera js/versao.js com a versão do appinfo.json — Ajustes exibe a versão real do IPK */
+var raizApp = path.join(__dirname, '..', 'saimo-lg-webos');
+var appinfo = JSON.parse(fs.readFileSync(path.join(raizApp, 'appinfo.json'), 'utf8'));
+var versao = appinfo.version || '0.0.0';
+fs.writeFileSync(path.join(raizApp, 'js', 'versao.js'), 'window.SAIMO_VERSAO = ' + JSON.stringify(versao) + ';\n', 'utf8');
+console.log('--- versao.js gerado: Saimo TV ' + versao + ' ---');
