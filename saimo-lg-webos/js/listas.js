@@ -16,6 +16,8 @@ var SaimoListas = {
   MAX_ITENS: 10000,
   HORAS: 12 * 3600000,
   listas: [],
+  indice: null,
+  indiceSuja: true,
   _idbTentou: false,
   _idbPronto: false,
   _idbEscritas: 0,
@@ -213,6 +215,7 @@ var SaimoListas = {
   },
   salvar: function salvar() {
     var self = this;
+    this.indiceSuja = true;
     if (this._idbPronto && this._idb) {
       this._gravarIdb(function (ok) {
         if (!ok && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "as listas não persistiram (IndexedDB e localStorage falharam)");
@@ -618,16 +621,38 @@ var SaimoListas = {
     var b = this.chave(this.semAno(tituloCatalogo));
     return !!(a && b && a === b);
   },
+  garantirIndice: function garantirIndice() {
+    var self = this;
+    if (!this.indiceSuja && this.indice) return;
+    var filmes = Object.create(null);
+    var eps = Object.create(null);
+    this.ativas().forEach(function (lista) {
+      (lista.itens || []).forEach(function (it) {
+        if (!it || !it.title || !it.kind) return;
+        var k = self.chave(self.semAno(self.limparNome(it.title)));
+        if (!k) return;
+        var alvo = it.kind === "movie" ? filmes : it.kind === "episode" ? eps : null;
+        if (!alvo) return;
+        if (!alvo[k]) alvo[k] = [];
+        alvo[k].push(it);
+      });
+    });
+    this.indice = { filmes: filmes, eps: eps };
+    this.indiceSuja = false;
+  },
   fontesFilme: function fontesFilme(titulo) {
-    var _this7 = this;
+    var self = this;
+    this.garantirIndice();
+    var k = self.chave(self.semAno(titulo));
+    var bucket = this.indice && this.indice.filmes[k] || [];
+    var esconder = this.esconderAdulto();
     var out = [];
     var visto = Object.create(null);
-    this.cada(function (it) {
-      if (it.kind !== "movie") return;
-      if (!_this7.casa(it.title, titulo)) return;
+    bucket.forEach(function (it) {
+      if (esconder && it.adult) return;
       if (visto[it.url]) return;
       visto[it.url] = 1;
-      out.push(_this7.fonte(it.url, {
+      out.push(self.fonte(it.url, {
         referer: it.referer,
         agent: it.agent
       }));
@@ -635,13 +660,14 @@ var SaimoListas = {
     return out;
   },
   juntarEpisodios: function juntarEpisodios(item) {
-    var _this8 = this;
+    var self = this;
     if (!item || !item.title) return item;
-    var extras = [];
-    this.cada(function (it) {
-      if (it.kind !== "episode") return;
-      if (!_this8.casa(it.title, item.title)) return;
-      extras.push(it);
+    this.garantirIndice();
+    var k = self.chave(self.semAno(item.title));
+    var cru = this.indice && this.indice.eps[k] || [];
+    var esconder = this.esconderAdulto();
+    var extras = cru.filter(function (it) {
+      return !(esconder && it.adult);
     });
     if (!extras.length) return item;
     item.episodes = item.episodes || [];
