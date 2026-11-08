@@ -240,7 +240,7 @@ var SaimoListas = {
     var grupo = meta.group || "";
     var bruto = (meta.name || "").trim();
     var g = this.fold(grupo);
-    var ep = bruto.match(/(?:^|[\s._-])S(\d{1,2})\s*E(\d{1,2})(?=$|[\s._-])/i) || bruto.match(/(?:^|[\s._-])(\d{1,2})x(\d{2})(?=$|[\s._-])/i);
+    var ep = bruto.match(/(?:^|[\s._-])S(\d{1,2})\s*E(\d{1,3})(?=$|[\s._-])/i) || bruto.match(/(?:^|[\s._-])(\d{1,2})x(\d{2})(?=$|[\s._-])/i) || bruto.match(/(?:^|[\s._-])T(\d{1,2})\s*E(\d{1,3})(?=$|[\s._-])/i) || bruto.match(/(?:Temporada|Temp\.?)\s*(\d{1,2})(?:\s*(?:Episodio|Ep\.?|E)\s*(\d{1,3}))?/i) || bruto.match(/Season\s*(\d{1,2})(?:\s*(?:Episode|Ep\.?|E)\s*(\d{1,3}))?/i);
     var ext = String(url).split("?")[0].toLowerCase();
     var arquivo = /\.(mp4|mkv|avi|m4v)$/.test(ext);
     var grupoFilme = /filme|movie|\bvod\b|cinema/.test(g);
@@ -250,8 +250,8 @@ var SaimoListas = {
     var season = 0;
     var episode = 0;
     if (ep) {
-      season = parseInt(ep[1], 10);
-      episode = parseInt(ep[2], 10);
+      season = parseInt(ep[1], 10) || 0;
+      episode = parseInt(ep[2], 10) || 0;
       title = this.limparNome(bruto.slice(0, ep.index));
       kind = title ? "episode" : "skip";
     } else if (grupoSerie) {
