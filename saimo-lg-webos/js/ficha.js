@@ -11,7 +11,7 @@ var SaimoFicha = {
   FICHAS_LOCAL: "vod/fichas.txt",
   FICHAS_URL: "https://filmes-saimo.pages.dev/fichas.txt",
   SINOPSES: "vod/sinopses.txt",
-  SINOPSES_URL: "https://filmes-saimo.pages.dev/sinopses.txt",
+  SINOPSES_URL: "https://nx-conexao.pages.dev/sinopses.txt",
   SERIES_EPS: "vod/series_eps.txt",
   PLATAFORMAS_LOCAL: "vod/plataformas.txt",
   PLATAFORMAS_URL: "https://filmes-saimo.pages.dev/plataformas.txt",
@@ -212,7 +212,7 @@ var SaimoFicha = {
     return new Promise(function (resolve, reject) {
       try {
         if (!self._indexWorker) {
-          self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt132");
+          self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt135");
         }
         var w = self._indexWorker;
         var reqId = ++self._indexReqId;

@@ -68,31 +68,43 @@ self.onmessage = function (ev) {
     });
   }
 
-  /* Entrega FATIADA: um postMessage gigante deserializava 95 mil registros de
-     uma vez na main thread (3,3s de engasgo — medido na TV). Blocos de 6 mil
-     custam ~200-300ms cada e a UI respira entre eles. */
+  /* Entrega FATIADA e ESPAÇADA: um postMessage gigante deserializava 95 mil
+     registros de uma vez (3,3s — medido na TV); e mesmo fatiado, os blocos
+     chegavam em rajada e se empilhavam (~4s seguidos). Pausa de 140 ms entre
+     blocos dá respiro real para a UI processar teclado/animação. */
   var CHUNK = 6000;
+  var PAUSA = 140;
+  var fila = [];
   var primeiro = true;
-  function enviar(tipo, arr) {
+  function enfileirar(tipo, arr) {
     for (var i = 0; i < arr.length; i += CHUNK) {
-      self.postMessage({
+      fila.push({
         cmd: "indice-chunk",
         reqId: d.reqId || 0,
         tipo: tipo,
         inicio: primeiro,
-        tFim: Date.now(),
         posterBase: primeiro ? posterBase : "",
         itens: arr.slice(i, i + CHUNK)
       });
       primeiro = false;
     }
   }
-  enviar("f", itens.f);
-  enviar("s", itens.s);
-  self.postMessage({
-    cmd: "indexado-fim",
-    reqId: d.reqId || 0,
-    ms: Math.round(agoraMs() - t0),
-    total: itens.f.length + itens.s.length
-  });
+  enfileirar("f", itens.f);
+  enfileirar("s", itens.s);
+  function despachar() {
+    var msg = fila.shift();
+    if (!msg) {
+      self.postMessage({
+        cmd: "indexado-fim",
+        reqId: d.reqId || 0,
+        ms: Math.round(agoraMs() - t0),
+        total: itens.f.length + itens.s.length
+      });
+      return;
+    }
+    msg.tFim = Date.now();
+    self.postMessage(msg);
+    setTimeout(despachar, PAUSA);
+  }
+  despachar();
 };
