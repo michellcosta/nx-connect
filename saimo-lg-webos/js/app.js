@@ -5469,7 +5469,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function cardsDestaqueSecao(kind, pred) {
       var dest = cacheDestaques();
       if (!dest || !((dest.filas && dest.filas.length) || Object.keys(dest.filmesRows || {}).length)) {
-        var cats = kind === "series" ? seriesCats : filmesCats;
+        var cats = kind === "animes" || kind === "doramas" ? colecaoCats : kind === "series" ? seriesCats : filmesCats;
         var chave;
         for (chave in cats) {
           if (Object.prototype.hasOwnProperty.call(cats, chave) && pred(chave) && cats[chave].length) {
@@ -5497,6 +5497,10 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!it || !it.title || visto[it.title]) return;
         if (kind === "filmes" && (it.marca === "s" || it.marca === "a" || it.marca === "d" || it.type === "series")) return;
         if (kind === "series" && (it.marca === "f" || it.type === "movie" || itemPareceAnime(it))) return;
+        /* Animes/Doramas: a fila "Lançamentos" do destaques é marca "f"
+           (filmes) — sem este filtro os filmes vazavam nessas seções. */
+        if (kind === "animes" && it.marca && it.marca !== "a") return;
+        if (kind === "doramas" && it.marca && it.marca !== "d") return;
         if (!itemTemPlay(it, kind)) return;
         visto[it.title] = 1;
         out.push(cardDoAcervo(it, isSeries));
@@ -5507,6 +5511,8 @@ document.addEventListener("DOMContentLoaded", function () {
           var marca = f.marca || "";
           if (kind === "filmes" && (marca === "s" || marca === "a" || marca === "d")) return;
           if (kind === "series" && marca === "f") return;
+          if (kind === "animes" && marca && marca !== "a") return;
+          if (kind === "doramas" && marca && marca !== "d") return;
           (f.items || []).forEach(add);
         });
       }
