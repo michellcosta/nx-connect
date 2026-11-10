@@ -5770,6 +5770,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return 0;
     }
     function preencherPrateleira(kind, manterFoco) {
+    var _t0pp = Date.now();
       var idLista = odListaExtra && odListaExtra.id || odSide[odListaIndex] && odSide[odListaIndex].id;
       var idLado = odSide[odSideIndex] && odSide[odSideIndex].id;
       var zona = browseZone;
@@ -5811,7 +5812,9 @@ document.addEventListener("DOMContentLoaded", function () {
         browseZone = odSide.length ? "side" : "back";
       }
       updateBrowseFocus();
-    }
+    
+    if (window.SaimoDiagnostico && Date.now() - _t0pp > 50) SaimoDiagnostico.logEvento("perf", "preencherPrateleira: " + (Date.now() - _t0pp) + "ms");
+ }
     function itemOdEm(i) {
       if (i == null || i < 0) return null;
       if (odItems[i]) return odItems[i];
@@ -6823,7 +6826,9 @@ document.addEventListener("DOMContentLoaded", function () {
                   categoriesBar.appendChild(tab);
                 });
                 if (channelCounter) {
+                  var _t0ct = Date.now();
                   var tot = SaimoCatalogo.contagemSecao(secao === "series" ? "series" : "filmes");
+                  if (window.SaimoDiagnostico && Date.now() - _t0ct > 50) SaimoDiagnostico.logEvento("perf", "contagemSecao: " + (Date.now() - _t0ct) + "ms");
                   if (secao === "series") tot = qtdSeriesSemAnime(tot);
                   channelCounter.textContent = fmtNum(tot || 0) + " títulos";
                 }
@@ -6839,12 +6844,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 return _context17.a(2);
               }
               if (genero) {
+                var _t0gen = Date.now();
                 base = base.filter(function (it) {
                   var gens = (window.SaimoFicha && SaimoFicha.generosDe ? SaimoFicha.generosDe(it.title, isSeries) : []).map(function (g) {
                     return nomeGenero(g, isSeries);
                   });
                   return gens.indexOf(genero) >= 0;
                 });
+                if (window.SaimoDiagnostico && Date.now() - _t0gen > 50) SaimoDiagnostico.logEvento("perf", "catalogo filtro genero: " + (Date.now() - _t0gen) + "ms · " + base.length + " itens");
               }
               gradeItens = base.map(function (it) {
                 var serie = it.type === "series";
