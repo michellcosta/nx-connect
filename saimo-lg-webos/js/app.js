@@ -52,6 +52,12 @@ document.addEventListener("DOMContentLoaded", function () {
     var btnCatalogSearch = document.getElementById("btn-catalog-search");
     var btnCatalogGuide = document.getElementById("btn-catalog-guide");
     var homeClock = document.getElementById("home-clock");
+    var avisoCatalogo = document.getElementById("aviso-catalogo");
+    function atualizarAvisoCatalogo() {
+      if (!avisoCatalogo) return;
+      var pronto = !!(window.SaimoFicha && SaimoFicha.loaded);
+      avisoCatalogo.classList.toggle("hidden", pronto);
+    }
     var homeExplore = document.getElementById("home-explore");
     var exploreChips = homeExplore ? Array.prototype.slice.call(homeExplore.querySelectorAll(".explore-chip")) : [];
     var homeSideMenu = document.getElementById("home-side-menu");
@@ -2168,6 +2174,7 @@ document.addEventListener("DOMContentLoaded", function () {
         t = String((h + 11) % 12 + 1) + ":" + m + " " + ap;
       } else t = String(h).padStart(2, "0") + ":" + m;
       if (homeClock) homeClock.textContent = t;
+      if (avisoCatalogo && currentScreen === "home") atualizarAvisoCatalogo();
       if (catalogClock) catalogClock.textContent = t;
       if (browseClock) browseClock.textContent = t;
       if (eventsClock) eventsClock.textContent = t;
@@ -3501,6 +3508,7 @@ document.addEventListener("DOMContentLoaded", function () {
               if (window.SaimoFicha) {
                 quandoOcioso(function () {
                   SaimoFicha.ensureIndex().then(function () {
+                    atualizarAvisoCatalogo();
                     quandoOcioso(function () {
                       if (geracao !== homeBuildGen || !homeReady) return;
                       var imediata = fichaPronta(homeHeroItem);
@@ -5712,6 +5720,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.SaimoFicha && SaimoFicha.ensureIndex && !SaimoFicha.loaded && !SaimoFicha._menuAguardando) {
         SaimoFicha._menuAguardando = true;
         SaimoFicha.ensureIndex().then(function () {
+          atualizarAvisoCatalogo();
           SaimoFicha._menuAguardando = false;
           if (browseKind !== kind || !odSide.length) return;
           var idSel = odSide[odSideIndex] && odSide[odSideIndex].id;
@@ -6576,6 +6585,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 if (window.SaimoFicha && SaimoFicha.ensureIndex && !SaimoFicha.loaded) {
                   SaimoFicha.ensureIndex().then(function () {
+                    atualizarAvisoCatalogo();
                     if (seq !== browseSeq || browseKind !== kind) return;
                     preencherPrateleira(kind, true);
                   }).catch(function () {});

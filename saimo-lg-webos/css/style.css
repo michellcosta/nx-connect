@@ -5739,3 +5739,15 @@ body {
 .vod-source-indicator {
   display: none;
 }
+
+/* Aviso discreto de catálogo carregando (canto do header da home) */
+.aviso-catalogo {
+  display: inline-block;
+  margin-left: 12px;
+  font-size: 15px;
+  color: #8ea2d8;
+  opacity: 0.85;
+}
+.aviso-catalogo.hidden {
+  display: none;
+}

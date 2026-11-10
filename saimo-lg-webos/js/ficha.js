@@ -277,6 +277,13 @@ var SaimoFicha = {
     var lista = this.lista[d.tipo];
     var byTmdb = this.byTmdb[d.tipo];
     var itens = d.itens || [];
+    /* Pré-aquece o memo do fold com as chaves que o worker já calculou —
+       as consultas posteriores (itemTemPlay, conjunto) viram hit. */
+    if (this._foldCache === null) this._foldCache = Object.create(null);
+    for (var w = 0; w < itens.length; w++) {
+      var pw = itens[w];
+      if (this._foldCache[pw.t] === undefined) this._foldCache[pw.t] = pw.f;
+    }
     for (var i = 0; i < itens.length; i++) {
       var it = itens[i];
       if (it.id) {
@@ -1442,3 +1449,10 @@ var SaimoFicha = {
   }
 };
 window.SaimoFicha = SaimoFicha;
+/* Boot antecipado do índice: roda durante a abertura da TV (a fase de dados
+   não disputa decodificador com o vídeo). Sem isso o parse + entrega só
+   começavam depois da intro, e a home nascia engasgando. */
+if (typeof window !== "undefined" && window.SaimoFicha && !window.SaimoFicha._bootFeito) {
+  window.SaimoFicha._bootFeito = true;
+  window.SaimoFicha.ensureIndex().catch(function () {});
+}
