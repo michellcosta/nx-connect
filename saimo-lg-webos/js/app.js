@@ -9192,13 +9192,14 @@ document.addEventListener("DOMContentLoaded", function () {
       if (ch === "APAGAR") return "⌫";
       if (ch === "ESPAÇO") return "espaço";
       if (ch === "LIMPAR") return "limpar";
+      if (ch === "PRONTO") return "pronto";
       return ch;
     }
-    function montarTecladoEm(box, destKeys, onClick) {
+    function montarTecladoEm(box, destKeys, onClick, teclas) {
       if (!box || !destKeys) return;
       box.innerHTML = "";
       destKeys.length = 0;
-      teclasDoTeclado().forEach(function (ch) {
+      (teclas || teclasDoTeclado()).forEach(function (ch) {
         var el = document.createElement("div");
         el.className = "kb-key" + (ch.length > 1 ? " acao" : "");
         el.textContent = rotuloTecla(ch);
@@ -9228,7 +9229,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (aovivoBuscaKbIndex >= teclasDoTeclado().length) aovivoBuscaKbIndex = 0;
       if (radiosBuscaKb >= teclasDoTeclado().length) radiosBuscaKb = 0;
       montarTecladoEm(searchKeyboard, kbKeys, typeKey);
-      montarTecladoEm(document.getElementById("aovivo-busca-kb"), aovivoBuscaKeys, typeKeyAoVivo);
+      montarTecladoEm(document.getElementById("aovivo-busca-kb"), aovivoBuscaKeys, typeKeyAoVivo, teclasDoTeclado().concat(["PRONTO"]));
       montarTecladoEm(radiosBuscaTeclado, radiosBuscaTeclas, digitarRadioBusca);
       if (currentScreen === "search") updateSearchFocus();
       else if (aovivoBuscaAberta && catalogZone === "busca-kb") updateCatalogFocus();
@@ -9239,7 +9240,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     buildKeyboard();
     function montarTecladoAoVivo() {
-      montarTecladoEm(document.getElementById("aovivo-busca-kb"), aovivoBuscaKeys, typeKeyAoVivo);
+      montarTecladoEm(document.getElementById("aovivo-busca-kb"), aovivoBuscaKeys, typeKeyAoVivo, teclasDoTeclado().concat(["PRONTO"]));
     }
     function pintarQueryAoVivo() {
       var el = document.getElementById("aovivo-busca-query");
@@ -9257,6 +9258,14 @@ document.addEventListener("DOMContentLoaded", function () {
       gridIndex = 0;
       renderNextChunk(PAGE_SIZE_INITIAL);
       if (channelCounter) channelCounter.textContent = list.length + " canais";
+      /* Recolhe o teclado quando a lista filtra para poucos — ↑ na primeira
+         fileira expande o teclado de volta. */
+      var bar = document.getElementById("aovivo-busca");
+      if (bar) {
+        var recolher = !!(String(aovivoBuscaQuery || "").trim()) && list.length > 0 && list.length <= 6;
+        bar.classList.toggle("recolhido", recolher);
+        if (recolher && catalogZone === "busca-kb") saltarParaGradeBusca();
+      }
     }
     function abrirBuscaAoVivo() {
       if (currentScreen === "catsmais") {
@@ -9290,7 +9299,17 @@ document.addEventListener("DOMContentLoaded", function () {
         updateCatalogFocus();
       }
     }
+    function saltarParaGradeBusca() {
+      if (!activeItemList.length) return;
+      catalogZone = "grid";
+      gridIndex = 0;
+      updateCatalogFocus();
+    }
     function typeKeyAoVivo(ch) {
+      if (ch === "PRONTO") {
+        saltarParaGradeBusca();
+        return;
+      }
       if (aplicarModoTeclado(ch)) return;
       if (ch === "APAGAR") aovivoBuscaQuery = aovivoBuscaQuery.slice(0, -1);
       else if (ch === "LIMPAR") aovivoBuscaQuery = "";
@@ -9329,7 +9348,7 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (code === 40) {
           e.preventDefault();
           if (aovivoBuscaKbIndex + cols < n) aovivoBuscaKbIndex += cols;
-          else aovivoBuscaKbIndex = n - 1;
+          else saltarParaGradeBusca();
           updateCatalogFocus();
         } else if (code === 13) {
           e.preventDefault();
@@ -9354,7 +9373,13 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       } else if (code === 38) {
         e.preventDefault();
-        if (gridIndex - GRID_COLUMNS >= 0) {
+        if (aovivoBuscaAberta && gridIndex < GRID_COLUMNS) {
+          var bar2 = document.getElementById("aovivo-busca");
+          if (bar2) bar2.classList.remove("recolhido");
+          catalogZone = "busca-kb";
+          aovivoBuscaKbIndex = Math.max(0, aovivoBuscaKeys.length - cols);
+          updateCatalogFocus();
+        } else if (gridIndex - GRID_COLUMNS >= 0) {
           gridIndex -= GRID_COLUMNS;
           updateCatalogFocus();
         }

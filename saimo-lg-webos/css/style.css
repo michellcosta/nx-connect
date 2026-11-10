@@ -5752,3 +5752,12 @@ body {
 .aviso-catalogo.hidden {
   display: none;
 }
+
+/* Busca do Ao Vivo recolhida: só a linha do termo fica visível e a tela
+   vira resultados; ↑ na primeira fileira expande o teclado de volta. */
+.aovivo-busca.recolhido {
+  padding: 10px 40px 14px;
+}
+.aovivo-busca.recolhido .aovivo-busca-kb {
+  display: none;
+}
