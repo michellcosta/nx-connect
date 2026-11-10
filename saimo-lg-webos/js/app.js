@@ -9317,8 +9317,12 @@ document.addEventListener("DOMContentLoaded", function () {
       else aovivoBuscaQuery += ch;
       pintarQueryAoVivo();
       aplicarBuscaAoVivo();
-      catalogZone = "busca-kb";
-      updateCatalogFocus();
+      /* Se o recolher saltou para a grade, mantém o foco nos resultados —
+         antes estas duas linhas forçavam a volta ao teclado 1ms depois. */
+      if (catalogZone !== "grid") {
+        catalogZone = "busca-kb";
+        updateCatalogFocus();
+      }
     }
     function handleBuscaAoVivoKey(e, code) {
       var cols = KB_COLS;
