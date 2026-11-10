@@ -307,6 +307,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     this._segurarFonte = false;
     if (!mesmaFonte) this._fonteTocou = false;
     if (this.currentChannel !== channel) this.failedHosts = [];
+    if (this.currentChannel !== channel) this._stallRecuperacoes = 0;
     var canalAnterior = this.currentChannel;
     var idxAnterior = this.currentSourceIndex;
     this.currentChannel = channel;
@@ -935,6 +936,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     if (!this.isLive) return;
     var lastTime = this.video.currentTime;
     var stallCount = 0;
+    this._stallEstavelMs = 0;
     this._liveWatchdog = setInterval(function () {
       if (!_this8.isPlaying || _this8.video.paused) return;
       var cur = _this8.video.currentTime;
@@ -948,6 +950,12 @@ var SaimoPlayer = /*#__PURE__*/function () {
       } else {
         stallCount = 0;
         lastTime = cur;
+        /* 60 s estável limpa o histórico de recuperações da fonte atual */
+        _this8._stallEstavelMs += 1000;
+        if (_this8._stallEstavelMs >= 60000 && _this8._stallRecuperacoes) {
+          _this8._stallRecuperacoes = 0;
+          _this8._stallEstavelMs = 0;
+        }
       }
     }, 1000);
   };
@@ -960,6 +968,17 @@ var SaimoPlayer = /*#__PURE__*/function () {
   _proto.recuperarStallAoVivo = function recuperarStallAoVivo() {
     if (!this.isLive || !this.currentChannel) return;
     if (this.mpegts) return;
+    /* Vigia: 3 recuperações seguidas na mesma fonte = fonte ruim; avança pra próxima. */
+    this._stallRecuperacoes = (this._stallRecuperacoes || 0) + 1;
+    this._stallEstavelMs = 0;
+    if (this._stallRecuperacoes >= 3) {
+      this._stallRecuperacoes = 0;
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("fonte_oscilando", this.getCurrentSourceUrl());
+      this.showStatus("Sinal oscilando, trocando de fonte…");
+      this.showOSD(4000);
+      this.tryNextSource("Sinal oscilando");
+      return;
+    }
     this.showStatus("Recuperando sinal travado…");
     if (this._nativo && window.Hls && Hls.isSupported() && this.precisaHls(this.getCurrentSourceUrl())) {
       this._nativo = false;

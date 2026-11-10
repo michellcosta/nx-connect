@@ -120,6 +120,12 @@ document.addEventListener("DOMContentLoaded", function () {
     var homeHook = document.getElementById("home-hook");
     var jogosHojeScreen = document.getElementById("jogos-hoje-screen");
     var jogosHojeList = document.getElementById("jogos-hoje-list");
+    var jogosHojeDiasEl = document.getElementById("jogos-hoje-dias");
+    var tabelaScreen = document.getElementById("tabela-screen");
+    var tabelaChipsEl = document.getElementById("tabela-chips");
+    var tabelaListEl = document.getElementById("tabela-list");
+    var fichaJogoScreen = document.getElementById("ficha-jogo-screen");
+    var fichaJogoConteudo = document.getElementById("ficha-jogo-conteudo");
     var guideScreen = document.getElementById("guide-screen");
     var guideList = document.getElementById("guide-list");
     var guideStatus = document.getElementById("guide-status");
@@ -211,8 +217,24 @@ document.addEventListener("DOMContentLoaded", function () {
     var subtitleOverlay = document.getElementById("subtitle-overlay");
     if (window.SaimoLegendas) SaimoLegendas.setOverlay(subtitleOverlay);
     if (window.SaimoAjustes) SaimoAjustes.aplicar();
+    var _foldCache = Object.create(null);
+    var _foldCount = 0;
     function fold(s) {
-      return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      /* Memoizado: NFD + regex por título em cada itemTemPlay custou ~0,9 s
+         no perfil (catalogo.txt tem milhares de títulos). Chaves já normalizadas
+         pelo próprio fold — Object sem protótipo, sem risco de colisão.
+         Limite por contador: Object.keys(cache).length por miss era O(cache)
+         e engasgou a TV na 1.0.11 (30k títulos × Object.keys). */
+      s = String(s || "");
+      if (_foldCache[s] !== undefined) return _foldCache[s];
+      var r = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      if (_foldCount > 8000) {
+        _foldCache = Object.create(null);
+        _foldCount = 0;
+      }
+      _foldCache[s] = r;
+      _foldCount++;
+      return r;
     }
     function stripYear(s) {
       return String(s || "").replace(/\s*\(\d{4}\)\s*$/, "").trim();
@@ -602,12 +624,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     var liveChannelsAll = [];
     var jogosRefreshTimer = null;
+    var jogosEspnTimer = null;
     function refreshJogosAgora() {
       if (!window.SaimoExtra) return;
+      if (jogosHojeDia > 0) return;
       SaimoExtra.jogos(liveChannels()).then(function (jogos) {
         var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
         paintHook(hoje);
         if (currentScreen === "jogoshoje") renderJogosHoje();
+        if (window.SaimoJogosEspn && SaimoJogosEspn.enriquecerLista) {
+          SaimoJogosEspn.enriquecerLista(hoje).then(function () {
+            paintHook(hoje);
+            if (currentScreen === "jogoshoje") renderJogosHoje();
+          });
+        }
       }).catch(function () {});
     }
     function agendarRefreshJogos() {
@@ -616,6 +646,23 @@ document.addEventListener("DOMContentLoaded", function () {
         jogosRefreshTimer = null;
         refreshJogosAgora();
       }, 1500);
+    }
+    /* Placar ao vivo: enquanto o painel Jogos de hoje estiver aberto,
+       reconsulta a agenda + ESPN a cada 60s. */
+    function iniciarRefreshJogosEspn() {
+      if (jogosEspnTimer) clearTimeout(jogosEspnTimer);
+      jogosEspnTimer = setTimeout(function cicloJogosEspn() {
+        jogosEspnTimer = null;
+        if (currentScreen !== "jogoshoje") return;
+        if (jogosHojeDia === 0) refreshJogosAgora();
+        iniciarRefreshJogosEspn();
+      }, 60000);
+    }
+    function pararRefreshJogosEspn() {
+      if (jogosEspnTimer) {
+        clearTimeout(jogosEspnTimer);
+        jogosEspnTimer = null;
+      }
     }
     var liveCategories = ["Todos"];
     var aovivoMaisNome = "";
@@ -780,6 +827,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (GENERO_FILMES.indexOf(k) >= 0 || GENERO_SERIES.indexOf(k) >= 0) return true;
       return /^(Ação|Comédia|Drama|Terror|Suspense|Ficção|Animação|Romance|Aventura|Crime|Família|Fantasia|Mistério|Documentário|Guerra|Faroeste|História|Música|Kids|Reality|Soap|Talk|War|Infantil|Novela)/.test(k);
     }
+    function abasTemGenero(isSeries) {
+      var k;
+      var fonte = isSeries ? seriesCats : filmesCats;
+      for (k in fonte) if (isAbaGenero(k)) return true;
+      return false;
+    }
     function ordenarAbas(cats) {
       var dest = [];
       var gens = [];
@@ -857,6 +910,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return guardarNoIndice(serieByKey, s, gaveta);
         });
       });
+      window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
     }
     function usarCatalogoLazy() {
       try {
@@ -1316,7 +1370,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function carregarAcervo() {
       if (acervoPronto) return acervoPronto;
       acervoPronto = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-        var vod, tarefas, i;
+        var vod, tarefas, i, t0Acervo, t0Rb;
         return _regenerator().w(function (_context) {
           while (1) switch (_context.n) {
             case 0:
@@ -1328,7 +1382,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 _context.n = 1;
                 break;
               }
-              _context.n = 0;
+              _context.n = 20;
+              t0Acervo = Date.now();
               return new Promise(function (resolve) {
                 var s = document.createElement("script");
                 s.src = "js/vod_data.js";
@@ -1340,6 +1395,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 };
                 document.body.appendChild(s);
               });
+            case 20:
+              /* Antes isto voltava ao case 0: se o script falhasse, re-injetava
+                 para sempre (laço latente apontado pela auditoria). Agora segue
+                 uma única vez: com dados vai ao caminho embutido; sem dados,
+                 ao modo CDN. */
+              if (window.SAIMO_VOD_DATA) {
+                if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "acervo embutido: " + (Date.now() - t0Acervo) + "ms (load+parse do vod_data.js)");
+                _context.n = 1;
+                break;
+              }
+              if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("acervo", "vod_data.js nao carregou; seguindo no modo CDN");
+              _context.n = 10;
+              break;
             case 10:
               _context.n = 11;
               return SaimoCatalogo.carregarIndice();
@@ -1355,14 +1423,20 @@ document.addEventListener("DOMContentLoaded", function () {
               return SaimoAPI.loadVodDestaques();
             case 13:
               if (_context.v && _context.v.filmesRows) mesclarDestaquesNasRows(_context.v);
+              t0Rb = Date.now();
               rebuildVodIndex();
+              if (window.SaimoDiagnostico && Date.now() - t0Rb > 30) SaimoDiagnostico.logEvento("perf", "rebuildVodIndex: " + (Date.now() - t0Rb) + "ms");
               searchWorkerCatalogLoaded = false;
               quandoOcioso(function () {
                 if (!homeReady) return;
+                var t0Pi = Date.now();
                 refreshHomeDynamic();
+                var t0Gen = Date.now();
                 acrescentarGenerosHome();
+                if (window.SaimoDiagnostico && Date.now() - t0Gen > 30) SaimoDiagnostico.logEvento("perf", "generos home: " + (Date.now() - t0Gen) + "ms");
                 preencherCapasHome();
                 agendarIndexBuscaWorkerLetras();
+                if (window.SaimoDiagnostico && Date.now() - t0Pi > 30) SaimoDiagnostico.logEvento("perf", "pos-indice home: " + (Date.now() - t0Pi) + "ms");
               });
               if (searchWorkerReady) alimentarSearchWorkerCatalog();
               _context.n = 5;
@@ -1499,11 +1573,37 @@ document.addEventListener("DOMContentLoaded", function () {
       if (type === "movie") return filmeByKey[k] || filmeByKey[k2] || null;
       return filmeByKey[k] || serieByKey[k] || filmeByKey[k2] || serieByKey[k2] || null;
     }
+    /* Memo do itemTemPlay: abrir Filmes/On Demand rodava o teste por registro
+       (782k chamadas medidas na auditoria). A chave inclui os campos que dão
+       retorno antecipado (sources/xtreamId/episodes/letter) — nada muda de
+       resultado. Invalidado por SAIMO_FONTES_VER (rebuild do índice, carga do
+       Xtream, listas e ajustes). */
+    var _temPlayMemo = Object.create(null);
+    var _temPlayMemoN = 0;
+    var _temPlayVer = -1;
     function itemTemPlay(it, kind) {
       if (!it || it.type === "acao") return true;
       var title = it.title || it.name || "";
       if (!title) return false;
       kind = kind || (it.type === "movie" ? "filmes" : it.colecao === "animes" || it.kind === "anime" ? "animes" : it.colecao === "doramas" || it.kind === "dorama" ? "doramas" : "series");
+      var ver = window.SAIMO_FONTES_VER || 0;
+      if (ver !== _temPlayVer) {
+        _temPlayVer = ver;
+        _temPlayMemo = Object.create(null);
+        _temPlayMemoN = 0;
+      }
+      var ck = kind + "|" + title + "|" + (it.sources ? it.sources.length : 0) + "|" + (it.xtreamId || 0) + "|" + (it.episodes ? it.episodes.length : 0) + "|" + (it.letter && it.type === "series" ? 1 : 0);
+      if (_temPlayMemo[ck] !== undefined) return _temPlayMemo[ck];
+      var r = itemTemPlayCalc(it, kind, title);
+      if (_temPlayMemoN > 40000) {
+        _temPlayMemo = Object.create(null);
+        _temPlayMemoN = 0;
+      }
+      _temPlayMemo[ck] = r;
+      _temPlayMemoN++;
+      return r;
+    }
+    function itemTemPlayCalc(it, kind, title) {
       if (kind === "filmes" || it.type === "movie") {
         if (it.sources && it.sources.length) return true;
         if (it.xtreamId) return true;
@@ -1855,7 +1955,20 @@ document.addEventListener("DOMContentLoaded", function () {
     var heroBtnIndex = 0;
     var homeHookGame = null;
     var homeJogosHoje = [];
+    var jogosAgendaHoje = [];
     var jogosHojeIndex = 0;
+    var jogosHojeDia = 0;
+    var jogosHojeZona = "lista";
+    var jogosDiasAtalho = false;
+    var jogosDiaGrupos = [];
+    var jogosDiaCarregando = false;
+    var tabelaZona = "chips";
+    var tabelaIndex = 0;
+    var tabelaLiga = 0;
+    var tabelaVolta = "home";
+    var fichaJogoAtual = null;
+    var fichaVolta = "jogoshoje";
+    var fichaZona = "conteudo";
     var infoZone = "buttons";
     var infoCastIndex = 0;
     var seriesCastIndex = 0;
@@ -1979,6 +2092,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateClocks();
     setInterval(updateClocks, 10000);
     function hideAll() {
+      pararRefreshJogosEspn();
       screenHome.classList.add("hidden");
       screenCatalog.classList.add("hidden");
       if (screenBrowse) screenBrowse.classList.add("hidden");
@@ -1990,6 +2104,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (settingsScreen) settingsScreen.classList.remove("active");
       if (homeEditScreen) homeEditScreen.classList.remove("active");
       if (jogosHojeScreen) jogosHojeScreen.classList.remove("active");
+      if (tabelaScreen) tabelaScreen.classList.remove("active");
+      if (fichaJogoScreen) fichaJogoScreen.classList.remove("active");
       if (radiosCardScreen) radiosCardScreen.classList.remove("active");
       if (listasScreen) listasScreen.classList.remove("active");
       if (oficialScreen) oficialScreen.classList.remove("active");
@@ -2026,6 +2142,12 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (name === "settings") settingsScreen.classList.add("active");else if (name === "homeedit" && homeEditScreen) homeEditScreen.classList.add("active");else if (name === "jogoshoje" && jogosHojeScreen) {
         screenHome.classList.remove("hidden");
         jogosHojeScreen.classList.add("active");
+      } else if (name === "tabela" && tabelaScreen) {
+        screenHome.classList.remove("hidden");
+        tabelaScreen.classList.add("active");
+      } else if (name === "fichajogo" && fichaJogoScreen) {
+        screenHome.classList.remove("hidden");
+        fichaJogoScreen.classList.add("active");
       } else if (name === "listas" && listasScreen) listasScreen.classList.add("active");else if (name === "oficial" && oficialScreen) oficialScreen.classList.add("active");else if (name === "parear") {
         var parearEl = document.getElementById("parear-screen");
         if (parearEl) parearEl.classList.add("active");
@@ -2336,7 +2458,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (isSeries && nome === "Animação") return;
           var recs = SaimoFicha.listarPorGenero(isSeries, nome, 0, false);
           if (isSeries) recs = recsSerieSemAnime(recs);
-          if (recs.length >= FILEIRA_CAPAS) buckets[nome] = cardsDaFicha(recs, isSeries);
+          if (recs.length >= FILEIRA_CAPAS) buckets[nome] = cardsDaFicha(recs, isSeries, 48);
         });
         return buckets;
       }
@@ -2655,7 +2777,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var sec = el.dataset.section;
       closeHomeMenu("explore");
       if (sec === "home") return;
-      if (sec === "buscar") openSearch();else if (sec === "eventos") openEvents();else if (sec === "radios") openRadios();else if (sec === "guia") openGuide();else if (sec === "ondemand" || sec === "favoritos" || sec === "filmes" || sec === "series") openBrowse(sec);else enterSection(sec);
+      if (sec === "buscar") openSearch();else if (sec === "tabela") openTabela("home");else if (sec === "eventos") openEvents();else if (sec === "radios") openRadios();else if (sec === "guia") openGuide();else if (sec === "ondemand" || sec === "favoritos" || sec === "filmes" || sec === "series") openBrowse(sec);else enterSection(sec);
     }
     function paintHeroChips(parts) {
       if (!homeSpotMeta) return;
@@ -2845,6 +2967,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function paintHook(jogos) {
       homeJogosHoje = blocoLigado("jogo") ? jogos || [] : [];
+      jogosAgendaHoje = homeJogosHoje;
       homeHookGame = null;
       if (!homeHook) return;
       if (!homeJogosHoje.length) {
@@ -3136,7 +3259,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function _buildHome() {
       _buildHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(force) {
-        var geracao, cont, dest, grupos, ordenadas, emAlta, lancKey, lanc, filmeCont, seen, pushRow, aoVivo, canaisCont, daLista, tmdbLanc, _t7;
+        var geracao, cont, dest, grupos, ordenadas, emAlta, lancKey, lanc, filmeCont, seen, pushRow, aoVivo, canaisCont, daLista, tmdbLanc, _t7, t0Home, t0H2;
         return _regenerator().w(function (_context8) {
           while (1) switch (_context8.p = _context8.n) {
             case 0:
@@ -3162,6 +3285,7 @@ document.addEventListener("DOMContentLoaded", function () {
               return _context8.a(2);
             case 1:
               geracao = ++homeBuildGen;
+              t0Home = Date.now();
               cont = continueItems();
               dest = {
                 filmesRows: {},
@@ -3176,6 +3300,7 @@ document.addEventListener("DOMContentLoaded", function () {
               return SaimoAPI.loadVodDestaques();
             case 3:
               dest = _context8.v;
+              if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "home destaques fetch: " + (Date.now() - t0Home) + "ms (CDN)");
               _context8.n = 5;
               break;
             case 4:
@@ -3208,10 +3333,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 return it && it.type !== "channel";
               });
               _context8.n = 19;
+              t0H2 = Date.now();
               return window.SaimoFicha && SaimoFicha.lancamentosFilmes ? SaimoFicha.lancamentosFilmes() : [];
             case 19:
               if (geracao !== homeBuildGen) return _context8.a(2);
               tmdbLanc = _context8.v || [];
+              if (window.SaimoDiagnostico && Date.now() - t0H2 > 30) SaimoDiagnostico.logEvento("perf", "home lancamentos TMDB: " + (Date.now() - t0H2) + "ms");
               emAlta = cruzarLancamentosTmdb(tmdbLanc);
               var destAlta = grupos["Em alta"] ? mapDestRow(grupos["Em alta"]).slice(0, 20) : [];
               if (!destAlta.length) destAlta = destAltaLocal();
@@ -3232,6 +3359,7 @@ document.addEventListener("DOMContentLoaded", function () {
               }
               return _context8.a(2);
             case 8:
+              t0H2 = Date.now();
               homeData = [];
               seen = {};
               aoVivo = favLiveItems();
@@ -3251,6 +3379,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 }));
               }
               pushRow("Em alta", emAlta);
+              /* Fileiras do destaques além de Em alta (Séries em alta,
+                 Lançamentos, Séries novas, Animes, Doramas…). O pushRow já
+                 respeita o Editar início e corta duplicatas. */
+              (dest.filas || []).forEach(function (f) {
+                var t = f && f.title || "";
+                if (!t || t === "Em alta") return;
+                if (homeData.some(function (r) {
+                  return r.title === t;
+                })) return;
+                var itensF = mapDestRow(f.items || []);
+                if (itensF.length >= 4) pushRow(t, itensF);
+              });
               daLista = itensDaSuaLista();
               if (daLista.length) pushRow("Da sua lista", daLista);
               if (lanc.length && !(emAlta && emAlta.length) && !(tmdbLanc && tmdbLanc.length)) {
@@ -3260,9 +3400,11 @@ document.addEventListener("DOMContentLoaded", function () {
               homeData.forEach(function (row, ri) {
                 return homeRowsEl.appendChild(makeHomeRowEl(row, ri));
               });
+              if (window.SaimoDiagnostico && Date.now() - t0H2 > 30) SaimoDiagnostico.logEvento("perf", "home fileiras+dom: " + (Date.now() - t0H2) + "ms");
               preencherCapasHome();
               if (homeRow >= homeData.length) homeRow = 0;
               homeReady = true;
+              if (window.SaimoDiagnostico && window._saimoBootT0) SaimoDiagnostico.logEvento("perf", "home pronta: " + (Date.now() - window._saimoBootT0) + "ms desde boot");
               if (currentScreen === "home") updateHomeFocus();
               if (window.SaimoFicha) {
                 quandoOcioso(function () {
@@ -3450,8 +3592,16 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!j) return "";
       return j.canal && j.canal.name || j.canalNome || "";
     }
+    function temEspnId(j) {
+      return !!(j && j.ligaSlug && (j.espnId || j.id));
+    }
     function abrirJogo(j) {
-      if (!j || !j.canal) return;
+      if (!j) return;
+      if (!j.canal) {
+        // jogo sem canal na lista: mostra a ficha (escalação etc.) quando a ESPN conhece o jogo
+        if (temEspnId(j)) abrirFichaJogo(j);
+        return;
+      }
       returnScreen = "home";
       launchPlayer({
         name: j.canal.name,
@@ -3461,15 +3611,171 @@ document.addEventListener("DOMContentLoaded", function () {
         sources: j.canal.sources
       }, j.canal, null);
     }
+    function abrirJogoOuFicha(j) {
+      if (!j) return;
+      if (j.canal) {
+        abrirJogo(j);
+        return;
+      }
+      if (temEspnId(j)) abrirFichaJogo(j);
+    }
+    function abrirFichaDoFoco() {
+      var j = homeJogosHoje[jogosHojeIndex];
+      if (j) abrirFichaJogo(j);
+    }
     function itensJogosHoje() {
       return jogosHojeList ? jogosHojeList.querySelectorAll(".jogo-hoje-item") : [];
     }
+    function rotuloDia(offset) {
+      if (offset === 0) return "Hoje";
+      if (offset === 1) return "Amanhã";
+      var d = new Date(Date.now() + offset * 86400000);
+      var dias = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+      return dias[d.getDay()] + " " + d.getDate();
+    }
+    function renderDiasJogos() {
+      if (!jogosHojeDiasEl) return;
+      jogosHojeDiasEl.innerHTML = "";
+      for (var i = 0; i < 7; i++) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "jogo-dia-chip" + (i === jogosHojeDia ? " is-current" : "");
+        chip.textContent = rotuloDia(i);
+        (function (off) {
+          chip.addEventListener("click", function () {
+            mudarDiaJogos(off);
+          });
+        })(i);
+        jogosHojeDiasEl.appendChild(chip);
+      }
+      var atalho = document.createElement("button");
+      atalho.type = "button";
+      atalho.className = "jogo-dia-chip jogo-dia-tabelas";
+      atalho.textContent = "Tabelas";
+      atalho.addEventListener("click", function () {
+        openTabela("jogoshoje");
+      });
+      jogosHojeDiasEl.appendChild(atalho);
+      if (jogosHojeZona === "dias") {
+        if (jogosDiasAtalho) setFocus(atalho);
+        else {
+          var chips = jogosHojeDiasEl.children;
+          if (chips[jogosHojeDia]) setFocus(chips[jogosHojeDia]);
+        }
+      }
+    }
+    function mudarDiaJogos(offset) {
+      jogosDiasAtalho = false;
+      if (offset === jogosHojeDia) {
+        jogosHojeZona = "dias";
+        renderDiasJogos();
+        return;
+      }
+      jogosHojeDia = offset;
+      jogosHojeZona = "dias";
+      jogosHojeIndex = 0;
+      if (offset > 0) jogosDiaCarregando = true;
+      renderJogosHoje();
+      if (offset > 0) carregarDiaJogos(offset);
+    }
+    function carregarDiaJogos(offset) {
+      if (!window.SaimoJogosEspn || !SaimoJogosEspn.jogosDoDia) return;
+      SaimoJogosEspn.jogosDoDia(offset).then(function (grupos) {
+        jogosDiaCarregando = false;
+        if (jogosHojeDia !== offset || currentScreen !== "jogoshoje") return;
+        jogosDiaGrupos = grupos || [];
+        renderJogosHoje();
+      }).catch(function () {
+        jogosDiaCarregando = false;
+        if (jogosHojeDia === offset && currentScreen === "jogoshoje") {
+          jogosDiaGrupos = [];
+          renderJogosHoje();
+        }
+      });
+    }
     function renderJogosHoje() {
+      renderDiasJogos();
+      if (jogosHojeDia > 0) {
+        renderListaJogosDia();
+        return;
+      }
+      renderListaJogosAgenda();
+    }
+    function itemJogoEl(j, i, ehDia) {
+      var vivo = !!(window.SaimoExtra && SaimoExtra.aoVivo(j));
+      var quando = window.SaimoExtra ? SaimoExtra.quando(j.inicio) : "";
+      var futuro = !vivo && j.inicio > Date.now();
+      var canal = ehDia ? "" : nomeCanalJogo(j);
+      var row = document.createElement("div");
+      row.className = "jogo-hoje-item";
+      var pc = null;
+      var pf = null;
+      if (typeof j.placarCasa === "number" && typeof j.placarFora === "number") {
+        pc = j.placarCasa;
+        pf = j.placarFora;
+      } else if (j.placar && String(j.placar).indexOf("×") !== -1) {
+        var partes = String(j.placar).split("×");
+        pc = parseInt(partes[0], 10);
+        pf = parseInt(partes[1], 10);
+        if (isNaN(pc) || isNaN(pf)) {
+          pc = null;
+          pf = null;
+        }
+      }
+      var fimDeJogo = !vivo && !futuro && j.estado === "post" && j.tempo;
+      var times = document.createElement("div");
+      times.className = "jogo-hoje-times";
+      [j.casa, j.fora].forEach(function (nome, lado) {
+        if (lado === 1) {
+          var vs = document.createElement("div");
+          vs.className = "jogo-hoje-x";
+          if (pc !== null && pf !== null) {
+            var g1 = document.createElement("span");
+            g1.className = "jogo-hoje-placar";
+            g1.textContent = String(pc);
+            var g2 = document.createElement("span");
+            g2.className = "jogo-hoje-placar";
+            g2.textContent = String(pf);
+            vs.appendChild(g1);
+            vs.appendChild(document.createTextNode("×"));
+            vs.appendChild(g2);
+          } else {
+            vs.textContent = "×";
+          }
+          times.appendChild(vs);
+        }
+        var time = document.createElement("div");
+        time.className = "jogo-hoje-time";
+        time.appendChild(escudoPartida(nome, lado === 0 ? j.casaLogo : j.foraLogo));
+        var nm = document.createElement("div");
+        nm.className = "jogo-hoje-nome";
+        nm.textContent = nome || "";
+        time.appendChild(nm);
+        times.appendChild(time);
+      });
+      var info = document.createElement("div");
+      info.className = "jogo-hoje-info";
+      var estado = document.createElement("span");
+      estado.className = "jogo-hoje-estado " + (vivo ? "vivo" : fimDeJogo ? "fim" : futuro ? "breve" : "");
+      estado.textContent = vivo ? "AO VIVO" + (j.tempo ? " · " + j.tempo : "") : fimDeJogo ? j.tempo : futuro ? "EM BREVE" : quando;
+      info.appendChild(estado);
+      var resto = ehDia ? [quando, "sem canal"].filter(Boolean).join(" · ") : [vivo ? quando : "", j.liga, canal].filter(Boolean).join(" · ");
+      var fora = ehDia ? "" : j.canal ? "" : canal ? " · canal fora da lista" : "";
+      if (resto || fora) info.appendChild(document.createTextNode((resto ? " · " + resto : "") + fora));
+      row.appendChild(times);
+      row.appendChild(info);
+      row.addEventListener("click", function () {
+        jogosHojeIndex = i;
+        abrirFichaJogo(j);
+      });
+      return row;
+    }
+    function renderListaJogosAgenda() {
       if (!jogosHojeList) return;
       var vivoDe = function vivoDe(j) {
         return !!(window.SaimoExtra && SaimoExtra.aoVivo(j));
       };
-      homeJogosHoje = homeJogosHoje.slice().sort(function (a, b) {
+      homeJogosHoje = (jogosAgendaHoje || []).slice().sort(function (a, b) {
         var va = vivoDe(a) ? 0 : 1;
         var vb = vivoDe(b) ? 0 : 1;
         if (va !== vb) return va - vb;
@@ -3480,7 +3786,6 @@ document.addEventListener("DOMContentLoaded", function () {
       homeJogosHoje.forEach(function (j, i) {
         var vivo = vivoDe(j);
         var quando = window.SaimoExtra ? SaimoExtra.quando(j.inicio) : "";
-        var futuro = !vivo && j.inicio > Date.now();
         if (!vivo && quando !== horaAnterior) {
           horaAnterior = quando;
           var grupo = document.createElement("div");
@@ -3488,46 +3793,67 @@ document.addEventListener("DOMContentLoaded", function () {
           grupo.textContent = quando;
           jogosHojeList.appendChild(grupo);
         }
-        var canal = nomeCanalJogo(j);
-        var row = document.createElement("div");
-        row.className = "jogo-hoje-item";
-        var times = document.createElement("div");
-        times.className = "jogo-hoje-times";
-        [j.casa, j.fora].forEach(function (nome, lado) {
-          if (lado === 1) {
-            var vs = document.createElement("div");
-            vs.className = "jogo-hoje-x";
-            vs.textContent = "×";
-            times.appendChild(vs);
-          }
-          var time = document.createElement("div");
-          time.className = "jogo-hoje-time";
-          time.appendChild(escudoPartida(nome, lado === 0 ? j.casaLogo : j.foraLogo));
-          var nm = document.createElement("div");
-          nm.className = "jogo-hoje-nome";
-          nm.textContent = nome || "";
-          time.appendChild(nm);
-          times.appendChild(time);
-        });
-        var info = document.createElement("div");
-        info.className = "jogo-hoje-info";
-        var estado = document.createElement("span");
-        estado.className = "jogo-hoje-estado " + (vivo ? "vivo" : futuro ? "breve" : "");
-        estado.textContent = vivo ? "AO VIVO" : futuro ? "EM BREVE" : quando;
-        info.appendChild(estado);
-        var resto = [vivo ? quando : "", j.liga, canal].filter(Boolean).join(" · ");
-        var fora = j.canal ? "" : canal ? " · canal fora da lista" : "";
-        if (resto || fora) info.appendChild(document.createTextNode((resto ? " · " + resto : "") + fora));
-        row.appendChild(times);
-        row.appendChild(info);
-        row.addEventListener("click", function () {
-          jogosHojeIndex = i;
-          abrirJogo(j);
-        });
-        jogosHojeList.appendChild(row);
+        jogosHojeList.appendChild(itemJogoEl(j, i, false));
       });
+      focoListaJogos();
+    }
+    function renderListaJogosDia() {
+      if (!jogosHojeList) return;
+      var plano = [];
+      jogosHojeList.innerHTML = "";
+      jogosDiaGrupos.forEach(function (g) {
+        if (!g || !g.jogos || !g.jogos.length) return;
+        var grupo = document.createElement("div");
+        grupo.className = "jogo-hoje-grupo";
+        grupo.textContent = g.liga;
+        jogosHojeList.appendChild(grupo);
+        g.jogos.forEach(function (j) {
+          jogosHojeList.appendChild(itemJogoEl(j, plano.length, true));
+          plano.push(j);
+        });
+      });
+      if (!plano.length && !jogosDiaCarregando) {
+        var vazio = document.createElement("div");
+        vazio.className = "tabela-vazio";
+        vazio.textContent = "Sem jogos nesta data nas ligas do placar.";
+        jogosHojeList.appendChild(vazio);
+      } else if (!plano.length && jogosDiaCarregando) {
+        var carga = document.createElement("div");
+        carga.className = "tabela-vazio";
+        carga.textContent = "Carregando jogos do dia…";
+        jogosHojeList.appendChild(carga);
+      }
+      homeJogosHoje = plano;
+      focoListaJogos();
+    }
+    function focoListaJogos() {
+      if (jogosHojeZona !== "lista") return;
       if (jogosHojeIndex >= homeJogosHoje.length) jogosHojeIndex = 0;
-      setFocus(itensJogosHoje()[jogosHojeIndex]);
+      var itens = itensJogosHoje();
+      if (itens.length) setFocus(itens[jogosHojeIndex]);
+    }
+    function openJogosHoje() {
+      if (!jogosHojeScreen) return;
+      currentScreen = "jogoshoje";
+      showScreen("jogoshoje");
+      jogosHojeIndex = 0;
+      jogosHojeDia = 0;
+      jogosHojeZona = "lista";
+      if (jogosAgendaHoje.length) renderJogosHoje();
+      if (window.SaimoExtra) {
+        SaimoExtra.jogos(liveChannels()).then(function (jogos) {
+          var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
+          paintHook(hoje);
+          if (currentScreen === "jogoshoje") renderJogosHoje();
+          if (window.SaimoJogosEspn && SaimoJogosEspn.enriquecerLista) {
+            SaimoJogosEspn.enriquecerLista(hoje).then(function () {
+              paintHook(hoje);
+              if (currentScreen === "jogoshoje") renderJogosHoje();
+            });
+          }
+        }).catch(function () {});
+      }
+      iniciarRefreshJogosEspn();
     }
     function openJogosHoje() {
       if (!jogosHojeScreen) return;
@@ -3540,11 +3866,305 @@ document.addEventListener("DOMContentLoaded", function () {
           var hoje = window.SaimoExtra && SaimoExtra.jogosDeHoje ? SaimoExtra.jogosDeHoje(jogos) : [];
           paintHook(hoje);
           if (currentScreen === "jogoshoje") renderJogosHoje();
+          if (window.SaimoJogosEspn && SaimoJogosEspn.enriquecerLista) {
+            SaimoJogosEspn.enriquecerLista(hoje).then(function () {
+              paintHook(hoje);
+              if (currentScreen === "jogoshoje") renderJogosHoje();
+            });
+          }
         }).catch(function () {});
       }
+      iniciarRefreshJogosEspn();
     }
     function activateHook() {
       openJogosHoje();
+    }
+    function reabrirJogosHoje() {
+      currentScreen = "jogoshoje";
+      showScreen("jogoshoje");
+      renderJogosHoje();
+      iniciarRefreshJogosEspn();
+    }
+    /* ---------- Tabela do campeonato ---------- */
+    function ligasTabela() {
+      return window.SaimoJogosEspn && SaimoJogosEspn.LIGAS ? SaimoJogosEspn.LIGAS : [];
+    }
+    function itensTabela() {
+      return tabelaListEl ? tabelaListEl.querySelectorAll(".tabela-row") : [];
+    }
+    function celulaTabela(classe, texto) {
+      var c = document.createElement("span");
+      c.className = classe;
+      c.textContent = texto;
+      return c;
+    }
+    function focoTabela() {
+      if (tabelaZona === "chips") {
+        var chips = tabelaChipsEl ? tabelaChipsEl.children : [];
+        if (chips.length) setFocus(chips[Math.min(tabelaLiga, chips.length - 1)]);
+        return;
+      }
+      var itens = itensTabela();
+      if (itens.length) setFocus(itens[Math.min(tabelaIndex, itens.length - 1)]);
+    }
+    function renderTabelaChips() {
+      if (!tabelaChipsEl) return;
+      var ligas = ligasTabela();
+      tabelaChipsEl.innerHTML = "";
+      ligas.forEach(function (l, i) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "tabela-chip" + (i === tabelaLiga ? " is-current" : "");
+        chip.textContent = l.nome;
+        (function (idx) {
+          chip.addEventListener("click", function () {
+            if (tabelaLiga !== idx) {
+              tabelaLiga = idx;
+              renderTabela();
+            }
+          });
+        })(i);
+        tabelaChipsEl.appendChild(chip);
+      });
+    }
+    function renderTabela() {
+      var ligas = ligasTabela();
+      if (!ligas.length || !tabelaListEl) return;
+      var liga = ligas[Math.min(tabelaLiga, ligas.length - 1)];
+      renderTabelaChips();
+      tabelaIndex = 0;
+      tabelaListEl.innerHTML = '<div class="tabela-vazio">Carregando…</div>';
+      focoTabela();
+      SaimoJogosEspn.tabela(liga.slug).then(function (linhas) {
+        if (currentScreen !== "tabela") return;
+        pintarTabela(linhas || []);
+      }).catch(function () {
+        if (currentScreen === "tabela") pintarTabela([]);
+      });
+    }
+    function pintarTabela(linhas) {
+      if (!tabelaListEl) return;
+      tabelaListEl.innerHTML = "";
+      if (!linhas.length) {
+        var vazio = document.createElement("div");
+        vazio.className = "tabela-vazio";
+        vazio.textContent = "Esta liga não tem tabela (copa ou fase de grupos).";
+        tabelaListEl.appendChild(vazio);
+        focoTabela();
+        return;
+      }
+      var head = document.createElement("div");
+      head.className = "tabela-row tabela-head";
+      head.appendChild(celulaTabela("t-pos", "#"));
+      head.appendChild(celulaTabela("t-time", "Time"));
+      head.appendChild(celulaTabela("t-num", "P"));
+      head.appendChild(celulaTabela("t-num", "J"));
+      head.appendChild(celulaTabela("t-num", "V"));
+      head.appendChild(celulaTabela("t-num", "E"));
+      head.appendChild(celulaTabela("t-num", "D"));
+      head.appendChild(celulaTabela("t-num", "SD"));
+      tabelaListEl.appendChild(head);
+      linhas.forEach(function (l, i) {
+        var row = document.createElement("div");
+        row.className = "tabela-row";
+        row.appendChild(celulaTabela("t-pos", String(l.pos)));
+        var time = document.createElement("span");
+        time.className = "t-time";
+        var esc = escudoPartida(l.time, l.logo);
+        esc.classList.add("t-escudo");
+        time.appendChild(esc);
+        time.appendChild(celulaTabela("t-nome", l.time || ""));
+        row.appendChild(time);
+        row.appendChild(celulaTabela("t-num", l.pontos));
+        row.appendChild(celulaTabela("t-num", l.jogos));
+        row.appendChild(celulaTabela("t-num", l.vitorias));
+        row.appendChild(celulaTabela("t-num", l.empates));
+        row.appendChild(celulaTabela("t-num", l.derrotas));
+        row.appendChild(celulaTabela("t-num", l.saldo));
+        row.addEventListener("click", function () {
+          tabelaZona = "rows";
+          tabelaIndex = i;
+          focoTabela();
+        });
+        tabelaListEl.appendChild(row);
+      });
+      focoTabela();
+    }
+    function openTabela(volta) {
+      if (!tabelaScreen) return;
+      tabelaVolta = volta || "home";
+      tabelaZona = "chips";
+      currentScreen = "tabela";
+      showScreen("tabela");
+      renderTabela();
+    }
+    function fecharTabela() {
+      if (tabelaVolta === "jogoshoje") {
+        reabrirJogosHoje();
+        return;
+      }
+      returnToHome();
+    }
+    /* ---------- Ficha do jogo (escalação, gols e cartões) ---------- */
+    function abrirFichaJogo(j, volta) {
+      if (!j) return;
+      if (!j.espnId && j.id) j.espnId = j.id;
+      fichaJogoAtual = j;
+      fichaVolta = volta || currentScreen;
+      if (fichaVolta !== "jogoshoje" && fichaVolta !== "eventos") fichaVolta = "home";
+      fichaZona = j.canal ? "botao" : "conteudo";
+      currentScreen = "fichajogo";
+      showScreen("fichajogo");
+      if (fichaJogoConteudo) fichaJogoConteudo.scrollTop = 0;
+      renderFichaJogo(undefined);
+      if (window.SaimoJogosEspn && SaimoJogosEspn.fichaDoJogo) {
+        SaimoJogosEspn.fichaDoJogo(j).then(function (f) {
+          if (currentScreen === "fichajogo" && fichaJogoAtual === j) renderFichaJogo(f);
+        });
+      }
+    }
+    function fecharFichaJogo() {
+      if (fichaVolta === "jogoshoje") {
+        reabrirJogosHoje();
+        return;
+      }
+      returnToHome();
+    }
+    function escudoFicha(nome, logo) {
+      var box = document.createElement("div");
+      box.className = "ficha-escudo";
+      box.appendChild(escudoPartida(nome, logo));
+      var nm = document.createElement("div");
+      nm.className = "ficha-escudo-nome";
+      nm.textContent = nome || "";
+      box.appendChild(nm);
+      return box;
+    }
+    function focoFicha() {
+      var b = document.getElementById("ficha-assistir");
+      if (fichaZona === "botao" && b) {
+        setFocus(b);
+        return;
+      }
+      fichaZona = "conteudo";
+      if (currentFocusedElement && currentFocusedElement.classList && currentFocusedElement.classList.contains("ficha-assistir")) {
+        currentFocusedElement.classList.remove("focused");
+        currentFocusedElement = null;
+      }
+    }
+    function avisoFicha(texto) {
+      var a = document.createElement("div");
+      a.className = "tabela-vazio";
+      a.textContent = texto;
+      return a;
+    }
+    function linhaJogadorFicha(p) {
+      var l = document.createElement("div");
+      l.className = "ficha-jogador";
+      l.appendChild(celulaTabela("ficha-camisa", p.camisa || ""));
+      l.appendChild(celulaTabela("ficha-nome", p.nome || ""));
+      l.appendChild(celulaTabela("ficha-pos", p.posicao || ""));
+      return l;
+    }
+    function colunaEscalacaoFicha(t) {
+      var col = document.createElement("div");
+      col.className = "ficha-col";
+      var top = document.createElement("div");
+      top.className = "ficha-col-topo";
+      top.textContent = (t.nome || "") + (t.formacao ? "  ·  " + t.formacao : "");
+      col.appendChild(top);
+      var titulares = [];
+      var reservas = [];
+      (t.jogadores || []).forEach(function (p) {
+        (p.titular ? titulares : reservas).push(p);
+      });
+      if (titulares.length) {
+        var sub1 = document.createElement("div");
+        sub1.className = "ficha-sub";
+        sub1.textContent = "Titulares";
+        col.appendChild(sub1);
+        titulares.forEach(function (p) {
+          col.appendChild(linhaJogadorFicha(p));
+        });
+      }
+      if (reservas.length) {
+        var sub2 = document.createElement("div");
+        sub2.className = "ficha-sub";
+        sub2.textContent = "Reservas";
+        col.appendChild(sub2);
+        reservas.forEach(function (p) {
+          col.appendChild(linhaJogadorFicha(p));
+        });
+      }
+      return col;
+    }
+    function linhaEventoFicha(ev) {
+      var l = document.createElement("div");
+      l.className = "ficha-ev";
+      var icone = ev.tipo === "Goal" ? "GOL" : ev.tipo === "Red Card" ? "VERMELHO" : "AMARELO";
+      l.className += ev.tipo === "Goal" ? " gol" : " cartao";
+      l.appendChild(celulaTabela("ficha-ev-min", ev.minuto || ""));
+      l.appendChild(celulaTabela("ficha-ev-texto", icone + "  " + (ev.texto || "")));
+      return l;
+    }
+    function renderFichaJogo(ficha) {
+      if (!fichaJogoConteudo || !fichaJogoAtual) return;
+      var j = fichaJogoAtual;
+      fichaJogoConteudo.innerHTML = "";
+      var head = document.createElement("div");
+      head.className = "ficha-head";
+      head.appendChild(escudoFicha(j.casa, j.casaLogo));
+      var meio = document.createElement("div");
+      meio.className = "ficha-meio";
+      var placar = document.createElement("div");
+      placar.className = "ficha-placar";
+      placar.textContent = typeof j.placarCasa === "number" && typeof j.placarFora === "number" ? j.placarCasa + " × " + j.placarFora : "×";
+      var meta = document.createElement("div");
+      meta.className = "ficha-meta";
+      var vivo = !!(window.SaimoExtra && SaimoExtra.aoVivo(j));
+      meta.textContent = [vivo ? "AO VIVO" + (j.tempo ? " · " + j.tempo : "") : j.estado === "post" ? j.tempo || "ENCERRADO" : window.SaimoExtra ? SaimoExtra.quando(j.inicio) : "", j.liga].filter(Boolean).join(" · ");
+      meio.appendChild(placar);
+      meio.appendChild(meta);
+      if (j.canal) {
+        var assistir = document.createElement("button");
+        assistir.type = "button";
+        assistir.id = "ficha-assistir";
+        assistir.className = "ficha-assistir";
+        assistir.textContent = "▶  ASSISTIR" + (nomeCanalJogo(j) ? " · " + nomeCanalJogo(j) : "");
+        assistir.addEventListener("click", function () {
+          if (fichaJogoAtual === j) abrirJogo(j);
+        });
+        meio.appendChild(assistir);
+      }
+      head.appendChild(meio);
+      head.appendChild(escudoFicha(j.fora, j.foraLogo));
+      fichaJogoConteudo.appendChild(head);
+      focoFicha();
+      if (ficha === undefined) {
+        fichaJogoConteudo.appendChild(avisoFicha("Carregando escalação…"));
+        return;
+      }
+      if (!ficha) {
+        fichaJogoConteudo.appendChild(avisoFicha("Escalação ainda não publicada para este jogo."));
+        return;
+      }
+      var colunas = document.createElement("div");
+      colunas.className = "ficha-colunas";
+      colunas.appendChild(colunaEscalacaoFicha(ficha.times[0] || { nome: j.casa, jogadores: [] }));
+      colunas.appendChild(colunaEscalacaoFicha(ficha.times[1] || { nome: j.fora, jogadores: [] }));
+      fichaJogoConteudo.appendChild(colunas);
+      if (ficha.eventos && ficha.eventos.length) {
+        var tl = document.createElement("div");
+        tl.className = "ficha-timeline";
+        var titulo = document.createElement("div");
+        titulo.className = "ficha-sub";
+        titulo.textContent = "Gols e cartões";
+        tl.appendChild(titulo);
+        ficha.eventos.forEach(function (ev) {
+          tl.appendChild(linhaEventoFicha(ev));
+        });
+        fichaJogoConteudo.appendChild(tl);
+      }
     }
     function activateHomeItem() {
       return _activateHomeItem.apply(this, arguments);
@@ -4810,12 +5430,17 @@ document.addEventListener("DOMContentLoaded", function () {
           if (isSeries && nome === "Animação") return;
           var recs = window.SaimoFicha && SaimoFicha.listarPorGenero ? SaimoFicha.listarPorGenero(isSeries, nome, 0, false) : [];
           if (isSeries) recs = recsSerieSemAnime(recs);
-          recs = (recs || []).filter(function (rec) {
+          var todosRecs = recs || [];
+          /* itemTemPlay é estrito (exige fonte já embutida). Quando o catálogo
+             embutido não cobre os títulos da ficha, mantém todos — as fontes
+             resolvem do espelho remoto na hora de abrir a ficha. */
+          var comPlay = todosRecs.filter(function (rec) {
             return itemTemPlay({
               title: rec.titulo,
               type: isSeries ? "series" : "movie"
             }, kind);
           });
+          recs = comPlay.length >= 12 ? comPlay : todosRecs;
           if (!recs.length) return;
           out.push({
             id: "cat:" + nome,
@@ -4918,16 +5543,6 @@ document.addEventListener("DOMContentLoaded", function () {
           items: items
         });
       };
-      var pushSub = function pushSub(id, nome, filhos) {
-        if (!filhos || !filhos.length) return;
-        lado.push({
-          id: id,
-          nome: nome,
-          tipo: "submenu",
-          contagem: filhos.length,
-          filhos: filhos
-        });
-      };
       lado.push({
         id: "buscar",
         nome: "Pesquisar",
@@ -4972,7 +5587,11 @@ document.addEventListener("DOMContentLoaded", function () {
         contagem: lanc.length,
         items: lanc
       });
-      pushSub("generos", "Gêneros", filhosGenero(kind));
+      /* Gêneros direto no menu (sem submenu/flyout): cada gênero é uma
+         entrada "lista" com recs, igual aos filhos do antigo flyout. */
+      filhosGenero(kind).forEach(function (g) {
+        if (g && g.nome) lado.push(g);
+      });
       if (kind !== "animes" && kind !== "doramas") {
         var predAlta = function predAlta(n) {
           return kind === "series" ? /em alta/i.test(n) : /^em alta$/i.test(n);
@@ -4985,6 +5604,36 @@ document.addEventListener("DOMContentLoaded", function () {
         tipo: "az",
         contagem: contagemSecao(kind)
       });
+      /* O índice de fichas carrega em segundo plano; quando chegar, remonta o
+         menu pra valer as contagens e a lista cheia de gêneros. */
+      if (window.SaimoFicha && SaimoFicha.ensureIndex && !SaimoFicha.loaded && !SaimoFicha._menuAguardando) {
+        SaimoFicha._menuAguardando = true;
+        SaimoFicha.ensureIndex().then(function () {
+          SaimoFicha._menuAguardando = false;
+          if (browseKind !== kind || !odSide.length) return;
+          var idSel = odSide[odSideIndex] && odSide[odSideIndex].id;
+          var idLista = odSide[odListaIndex] && odSide[odListaIndex].id;
+          var t0Od = Date.now();
+          odSide = montarPrateleira(kind);
+          if (window.SaimoDiagnostico && Date.now() - t0Od > 40) SaimoDiagnostico.logEvento("perf", "montarPrateleira: " + (Date.now() - t0Od) + "ms");
+          var i;
+          var ni = -1;
+          for (i = 0; i < odSide.length; i++) {
+            if (odSide[i].id === idSel) ni = i;
+          }
+          odSideIndex = ni >= 0 ? ni : odSideIndex < odSide.length ? odSideIndex : 0;
+          if (idLista != null) {
+            var nj = -1;
+            for (i = 0; i < odSide.length; i++) {
+              if (odSide[i].id === idLista) nj = i;
+            }
+            if (nj >= 0) odListaIndex = nj;
+          }
+          pintarLado();
+        }).catch(function () {
+          SaimoFicha._menuAguardando = false;
+        });
+      }
       return lado;
     }
     function listaTemItens(ent) {
@@ -5326,12 +5975,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!odGrid) return;
         if (reset) {
         if (ent && ent.recs && ent.recs.length) {
-          ent.recs = ent.recs.filter(function (rec) {
+          /* Filtro estrito só quando vale a pena; senão mantém os recs —
+             as fontes resolvem do espelho remoto na ficha. */
+          var comPlay = ent.recs.filter(function (rec) {
             return itemTemPlay({
               title: rec.titulo,
               type: ent.isSeries ? "series" : "movie"
             }, browseKind);
           });
+          ent.recs = comPlay.length >= 12 ? comPlay : ent.recs;
           odItems = new Array(ent.recs.length);
         } else {
           odItems = aplicarFiltrosOd(ent && ent.items ? ent.items.slice() : []);
@@ -6182,7 +6834,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 break;
               }
               catalogSectionTitle.textContent = "FILMES";
-              if (Object.keys(filmesCats).length) {
+              if (Object.keys(filmesCats).length && abasTemGenero(false)) {
                 _context18.n = 3;
                 break;
               }
@@ -6199,7 +6851,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 break;
               }
               catalogSectionTitle.textContent = "SERIES";
-              if (Object.keys(seriesCats).length) {
+              if (Object.keys(seriesCats).length && abasTemGenero(true)) {
                 _context18.n = 5;
                 break;
               }
@@ -6381,16 +7033,23 @@ document.addEventListener("DOMContentLoaded", function () {
           mediaWrap.appendChild(createPlaceholder(item.name));
           if (window.SaimoLogos) SaimoLogos.pedir(item, mediaWrap);
         }
-      } else if (item.posterUrl) {
-        var poster = document.createElement("img");
-        poster.className = "vod-poster";
-        poster.src = item.posterUrl;
-        poster.loading = "lazy";
-        poster.onerror = function () {
-          return poster.replaceWith(createPlaceholder(item.title));
-        };
-        mediaWrap.appendChild(poster);
-      } else mediaWrap.appendChild(createPlaceholder(item.title));
+      } else {
+        /* Títulos vindos dos shards chegam sem capa: busca no índice de fichas
+           (TMDB) na hora, que é consulta local e rápida. */
+        if (window.SaimoFicha && SaimoFicha.capaDe && !item.posterUrl) {
+          item.posterUrl = SaimoFicha.capaDe(title, item.type === "series") || "";
+        }
+        if (item.posterUrl) {
+          var poster = document.createElement("img");
+          poster.className = "vod-poster";
+          poster.src = item.posterUrl;
+          poster.loading = "lazy";
+          poster.onerror = function () {
+            return poster.replaceWith(createPlaceholder(item.title));
+          };
+          mediaWrap.appendChild(poster);
+        } else mediaWrap.appendChild(createPlaceholder(item.title));
+      }
       var info = document.createElement("div");
       info.className = "channel-info";
       var name = document.createElement("div");
@@ -9606,6 +10265,14 @@ document.addEventListener("DOMContentLoaded", function () {
       desc: "Aponte a câmera. O código vale 6 minutos",
       type: "action"
     }, {
+      key: "pularAbertura",
+      grupo: "ligar",
+      title: "Abertura da TV",
+      desc: "Vídeo de entrada ao ligar",
+      type: "bool",
+      on: "Pular",
+      off: "Mostrar"
+    }, {
       key: "listasOficiais",
       grupo: "listas",
       title: "Listas oficiais",
@@ -9790,7 +10457,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (settingsVer) {
         var ver = window.SAIMO_VERSAO || (window.SaimoVersao && SaimoVersao.ATUAL) || "1.0.5";
-        settingsVer.textContent = "Saimo TV (" + ver + ") - atualizado por NeXus";
+        settingsVer.textContent = "Saimo TV (Versão NeXus " + ver + ")";
       }
       if (settingsIndex >= settingsDefs.length) settingsIndex = 0;
       focoSettings();
@@ -11417,7 +12084,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
           window.close();
         } catch (err) {}
-      } else if (currentScreen === "catsmais") fecharMaisCategorias();else if (currentScreen === "search") closeSearch();else if (currentScreen === "radiobusca") closeRadiosBusca();else if (currentScreen === "radioscard") closeRadiosCard();else if (currentScreen === "settings" || currentScreen === "homeedit" || currentScreen === "jogoshoje" || currentScreen === "eventos" || currentScreen === "radios") returnToHome();else if (currentScreen === "listas") fecharListas();else if (currentScreen === "parear") fecharParearCelular();else if (currentScreen === "oficial") fecharOficial();else if (currentScreen === "guia") {
+      } else if (currentScreen === "catsmais") fecharMaisCategorias();else if (currentScreen === "search") closeSearch();else if (currentScreen === "radiobusca") closeRadiosBusca();else if (currentScreen === "radioscard") closeRadiosCard();else if (currentScreen === "fichajogo") fecharFichaJogo();else if (currentScreen === "tabela") fecharTabela();else if (currentScreen === "settings" || currentScreen === "homeedit" || currentScreen === "jogoshoje" || currentScreen === "eventos" || currentScreen === "radios") returnToHome();else if (currentScreen === "listas") fecharListas();else if (currentScreen === "parear") fecharParearCelular();else if (currentScreen === "oficial") fecharOficial();else if (currentScreen === "guia") {
         if (guiaVolta === "catalog") {
           currentScreen = "catalog";
           showScreen("catalog");
@@ -11610,6 +12277,8 @@ document.addEventListener("DOMContentLoaded", function () {
           } else if (window.SaimoDiagnostico) {
             SaimoDiagnostico.toggleHUD(player);
           }
+        } else if (currentScreen === "jogoshoje") {
+          openTabela("jogoshoje");
         }
         return;
       }
@@ -11630,7 +12299,15 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (currentScreen === "guia" && guideZone === "list") {
           var row = guideData[guideIndex];
           if (row && row.ch) toggleFavorite(row.ch);
+        } else if (currentScreen === "jogoshoje") {
+          abrirFichaDoFoco();
         }
+        return;
+      }
+      /* tecla i/info: alternativa à amarela pra TVs sem botões de cor */
+      if (code === 413 && currentScreen === "jogoshoje") {
+        e.preventDefault();
+        abrirFichaDoFoco();
         return;
       }
       if (code === 406) {
@@ -11933,17 +12610,112 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       if (currentScreen === "jogoshoje") {
-        if (code === 38 && jogosHojeIndex > 0) {
+        if (jogosHojeZona === "dias") {
+          if (jogosDiasAtalho) {
+            if (code === 37) {
+              e.preventDefault();
+              jogosDiasAtalho = false;
+              renderDiasJogos();
+            } else if (code === 40) {
+              e.preventDefault();
+              jogosDiasAtalho = false;
+              jogosHojeZona = "lista";
+              focoListaJogos();
+            } else if (code === 13) {
+              e.preventDefault();
+              openTabela("jogoshoje");
+            }
+          } else if (code === 37 && jogosHojeDia > 0) {
+            e.preventDefault();
+            mudarDiaJogos(jogosHojeDia - 1);
+          } else if (code === 39) {
+            e.preventDefault();
+            if (jogosHojeDia < 6) mudarDiaJogos(jogosHojeDia + 1);
+            else {
+              jogosDiasAtalho = true;
+              renderDiasJogos();
+            }
+          } else if (code === 40) {
+            e.preventDefault();
+            jogosHojeZona = "lista";
+            focoListaJogos();
+          }
+          return;
+        }
+        if (code === 38) {
           e.preventDefault();
-          jogosHojeIndex--;
-          setFocus(itensJogosHoje()[jogosHojeIndex]);
+          if (jogosHojeIndex > 0) {
+            jogosHojeIndex--;
+            setFocus(itensJogosHoje()[jogosHojeIndex]);
+          } else {
+            jogosHojeZona = "dias";
+            renderDiasJogos();
+          }
         } else if (code === 40 && jogosHojeIndex < homeJogosHoje.length - 1) {
           e.preventDefault();
           jogosHojeIndex++;
           setFocus(itensJogosHoje()[jogosHojeIndex]);
         } else if (code === 13) {
           e.preventDefault();
-          abrirJogo(homeJogosHoje[jogosHojeIndex]);
+          abrirFichaDoFoco();
+        }
+        return;
+      }
+      if (currentScreen === "tabela") {
+        var ligasT = ligasTabela();
+        if (code === 37 && tabelaLiga > 0) {
+          e.preventDefault();
+          tabelaLiga--;
+          tabelaZona = "chips";
+          renderTabela();
+        } else if (code === 39 && tabelaLiga < ligasT.length - 1) {
+          e.preventDefault();
+          tabelaLiga++;
+          tabelaZona = "chips";
+          renderTabela();
+        } else if (code === 38) {
+          e.preventDefault();
+          if (tabelaZona === "rows" && tabelaIndex > 0) {
+            tabelaIndex--;
+            setFocus(itensTabela()[tabelaIndex]);
+          } else {
+            tabelaZona = "chips";
+            focoTabela();
+          }
+        } else if (code === 40) {
+          e.preventDefault();
+          var itensT = itensTabela();
+          if (tabelaZona === "chips" && itensT.length) {
+            tabelaZona = "rows";
+            tabelaIndex = 0;
+            setFocus(itensT[0]);
+          } else if (tabelaIndex < itensT.length - 1) {
+            tabelaIndex++;
+            setFocus(itensT[tabelaIndex]);
+          }
+        }
+        return;
+      }
+      if (currentScreen === "fichajogo") {
+        if (code === 40) {
+          e.preventDefault();
+          if (fichaZona === "botao") {
+            fichaZona = "conteudo";
+            focoFicha();
+          }
+          if (fichaJogoConteudo) fichaJogoConteudo.scrollTop += 320;
+        } else if (code === 38) {
+          e.preventDefault();
+          if (fichaJogoConteudo && fichaJogoConteudo.scrollTop > 0) {
+            fichaJogoConteudo.scrollTop -= 320;
+          } else if (fichaZona === "conteudo") {
+            fichaZona = "botao";
+            focoFicha();
+            if (fichaJogoConteudo) fichaJogoConteudo.scrollTop = 0;
+          }
+        } else if (code === 13) {
+          e.preventDefault();
+          if (fichaZona === "botao" && fichaJogoAtual) abrirJogo(fichaJogoAtual);
         }
         return;
       }
@@ -13070,6 +13842,19 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
     window.addEventListener("keydown", handleNav);
+    /* Scroll do mouse também paga mais chunks da grade (desktop/debug);
+       no controle isso já acontece pela navegação (gridIndex perto do fim). */
+    if (contentArea) {
+      contentArea.addEventListener("scroll", function () {
+        if (currentScreen !== "catalog") return;
+        if (renderedCount >= activeItemList.length) return;
+        if (contentArea.scrollTop + contentArea.clientHeight >= contentArea.scrollHeight - 500) {
+          renderNextChunk(PAGE_SIZE_STEP * 5);
+        }
+      }, {
+        passive: true
+      });
+    }
     exploreIndex = 0;
     homeZone = "explore";
     updateHomeFocus();
@@ -13366,6 +14151,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   };
+  /* O início continua ATRAVÉS da abertura (quandoTerminar): ela remove e
+     devolve o <video> do player do DOM por causa do decodificador único da LG —
+     iniciar antes deixava video=null e matava o init todo (regressão 1.0.22).
+     Boot rápido: Ajustes → Abertura da TV: Pular (avisar() já rodou e o
+     quandoTerminar dispara na hora). */
   if (window.SaimoAbertura) SaimoAbertura.quandoTerminar(iniciarApp);else iniciarApp();
 });
 
@@ -13381,4 +14171,4 @@ function ajustarEscalaApp() {
   }
 }
 window.addEventListener("resize", ajustarEscalaApp);
-ajustarEscalaApp();
+ajustarEscalaApp();if (window.SaimoDiagnostico && window._saimoT0) SaimoDiagnostico.logEvento("perf", "app carregado: " + (Date.now() - window._saimoT0) + "ms desde versao.js (parse de todos os scripts)");

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
   <title>Saimo TV</title>
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" href="css/style.css?v=xt96">
+  <link rel="stylesheet" href="css/style.css?v=xt102">
 </head>
 <body>
 
@@ -25,6 +25,7 @@
       <button type="button" class="home-side-item" data-section="home">Início</button>
       <button type="button" class="home-side-item" data-section="aovivo">Ao vivo</button>
       <button type="button" class="home-side-item" data-section="eventos">Eventos</button>
+      <button type="button" class="home-side-item" data-section="tabela">Tabelas</button>
       <button type="button" class="home-side-item" data-section="ondemand">On Demand</button>
       <button type="button" class="home-side-item" data-section="favoritos">Favoritos</button>
       <button type="button" class="home-side-item" data-section="radios">Rádios</button>
@@ -185,7 +186,23 @@
   <div id="jogos-hoje-screen" class="info-panel-overlay">
     <div class="jogos-hoje-card">
       <h1>Jogos de hoje</h1>
+      <div id="jogos-hoje-dias" class="jogos-hoje-dias"></div>
       <div id="jogos-hoje-list" class="settings-list"></div>
+      <div class="jogos-hoje-dica">OK abre a ficha do jogo (Assistir está dentro dela) · chip Tabelas no topo abre as classificações · amarelo ou i também abrem a ficha</div>
+    </div>
+  </div>
+
+  <div id="tabela-screen" class="info-panel-overlay">
+    <div class="tabela-card">
+      <h1>Tabelas</h1>
+      <div id="tabela-chips" class="tabela-chips"></div>
+      <div id="tabela-list" class="tabela-list"></div>
+    </div>
+  </div>
+
+  <div id="ficha-jogo-screen" class="info-panel-overlay">
+    <div class="ficha-jogo-card">
+      <div id="ficha-jogo-conteudo" class="ficha-jogo-conteudo"></div>
     </div>
   </div>
 
@@ -719,36 +736,37 @@
   </div>
 
   <script src="js/versao.js"></script>
-  <script src="js/polyfills.js"></script>
-  <script src="js/listas.js?v=xt37"></script>
-  <script src="js/abertura.js?v=xt55"></script>
+  <script src="js/polyfills.js?v=xt115"></script>
+  <script src="js/listas.js?v=xt133"></script>
   <script src="js/hls.min.js"></script>
-  <script src="js/vod_bases.js"></script>
+  <script src="js/vod_bases.js?v=xt126"></script>
   <script src="js/channels_data.js"></script>
-  <script src="js/ajustes.js?v=xt56"></script>
+  <script src="js/ajustes.js?v=xt133"></script>
+  <script src="js/abertura.js?v=xt129"></script>
   <script src="js/fonte-preferida.js?v=xt56"></script>
   <script src="js/listas-oficiais.js"></script>
   <script src="js/contexto.js"></script>
   <script src="js/fontes.js?v=xt60"></script>
-  <script src="js/api.js?v=xt80"></script>
-  <script src="js/extra.js?v=xt75"></script>
-  <script src="js/epg.js?v=xt19"></script>
-  <script src="js/ficha.js?v=xt83"></script>
+  <script src="js/api.js?v=xt124"></script>
+  <script src="js/extra.js?v=xt134"></script>
+  <script src="js/epg.js?v=xt121"></script>
+  <script src="js/ficha.js?v=xt132"></script>
   <script src="js/generos-ondemand.js?v=xt55"></script>
   <script src="js/canais-aovivo.js?v=xt61"></script>
-  <script src="js/capas.js?v=xt47"></script>
+  <script src="js/capas.js?v=xt48"></script>
   <script src="js/logos-tv.js?v=xt54"></script>
   <script src="js/logos.js?v=xt80"></script>
   <script src="js/legendas.js?v=xt55"></script>
   <script src="js/telemetria.js"></script>
-  <script src="js/catalogo.js"></script>
-  <script src="js/diagnostico.js?v=xt35"></script>
+  <script src="js/catalogo.js?v=xt1"></script>
+  <script src="js/diagnostico.js?v=xt130"></script>
   <script src="js/parear.js?v=xt32"></script>
-  <script src="js/xtream.js?v=xt76"></script>
+  <script src="js/xtream.js?v=xt133"></script>
   <script src="js/multiview.js?v=xt48"></script>
   <script src="js/catchup.js"></script>
   <script src="js/player-vod.js?v=xt47"></script>
-  <script src="js/player.js?v=xt60"></script>
-  <script src="js/app.js?v=xt101"></script>
+  <script src="js/player.js?v=xt61"></script>
+  <script src="js/jogos-espn.js?v=xt134"></script>
+  <script src="js/app.js?v=xt133"></script>
 </body>
 </html>

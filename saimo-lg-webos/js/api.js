@@ -308,7 +308,17 @@ var SaimoAPI = {
       xhr.open("GET", url, true);
       xhr.timeout = 20000;
       xhr.onload = function () {
-        resolve(xhr.status >= 200 && xhr.status < 300 ? xhr.responseText || "" : "");
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.responseText || "");
+          return;
+        }
+        /* file://: Chrome reporta status 0 mesmo em sucesso — sem isso o
+           conteúdo local era descartado e o app virava só-CDN na TV. */
+        if (xhr.status === 0 && xhr.responseText) {
+          resolve(xhr.responseText);
+          return;
+        }
+        resolve("");
       };
       xhr.onerror = function () {
         resolve("");
@@ -384,6 +394,8 @@ var SaimoAPI = {
         while (1) switch (_context6.n) {
           case 0:
             path = String(nome || "").replace(/^vod\//, "");
+            /* '#' na URL vira fragmento e corta o caminho: usa %23. */
+            path = path.replace(/#/g, "%23");
             origem = origem || null;
             if (origem && origem.local) {
               _context6.n = 4;
@@ -1127,3 +1139,36 @@ var SaimoAPI = {
   }
 };
 window.SaimoAPI = SaimoAPI;
+/* Config remota (nx-conexao.pages.dev): versão mínima e mensagem, trocáveis
+   sem IPK. Silencioso em falha; resultados vão para o Diagnóstico. */
+(function () {
+  function comparar(a, b) {
+    a = String(a || "").split(".");
+    b = String(b || "").split(".");
+    var i;
+    for (i = 0; i < 3; i++) {
+      var x = parseInt(a[i], 10) || 0;
+      var y = parseInt(b[i], 10) || 0;
+      if (x !== y) return x - y;
+    }
+    return 0;
+  }
+  try {
+    var x = new XMLHttpRequest();
+    x.open("GET", "https://nx-conexao.pages.dev/v1/config", true);
+    x.timeout = 15000;
+    x.onload = function () {
+      try {
+        var j = JSON.parse(x.responseText || "{}");
+        if (!j || j.vazio) return;
+        window.SAIMO_CONFIG = j;
+        var atual = (typeof window !== "undefined" && window.SAIMO_VERSAO) || "";
+        if (j.versaoMinima && atual && comparar(j.versaoMinima, atual) > 0) {
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("atualizacao", "versao " + j.versaoMinima + " disponivel (esta TV: " + atual + ")");
+        }
+        if (j.mensagem && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("aviso", j.mensagem);
+      } catch (eC) {}
+    };
+    x.send();
+  } catch (eR) {}
+})();

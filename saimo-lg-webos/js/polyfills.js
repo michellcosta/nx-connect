@@ -347,6 +347,28 @@
         };
     }
 
+    /* ── String.prototype.padStart / padEnd (Chrome 57+) ───────────────────
+       webOS 3/4.0 (Chrome 38/53) não tem; updateClocks() no app.js chama
+       padStart DURANTE a inicialização e a exceção matava a fiação montada
+       depois dela (abas de gênero, capas). Spec-shaped e feature-detected. */
+    function padShim(porFim) {
+        return function (maxLength, fillString) {
+            var s = String(this);
+            if (maxLength === undefined || maxLength !== maxLength) maxLength = 0;
+            maxLength = maxLength | 0;
+            if (maxLength <= s.length) return s;
+            var fill = fillString === undefined ? ' ' : String(fillString);
+            if (!fill.length) return s;
+            var falta = maxLength - s.length;
+            var repetido = '';
+            while (repetido.length < falta) repetido += fill;
+            repetido = repetido.slice(0, falta);
+            return porFim ? s + repetido : repetido + s;
+        };
+    }
+    if (!String.prototype.padStart) String.prototype.padStart = padShim(false);
+    if (!String.prototype.padEnd) String.prototype.padEnd = padShim(true);
+
     /* ── Object.assign (Chrome 45+) ──────────────────────────────────────── */
     if (typeof Object.assign !== 'function') {
         Object.assign = function (target) {

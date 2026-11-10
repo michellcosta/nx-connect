@@ -314,13 +314,11 @@ var SaimoEpg = {
     "x sports": "xsports",
     xsports: "xsports",
     "amc series": "amc",
-    bis: "bis",
     "cnn brasil money": "cnn-brasil",
     "canal gov": "canal-gov",
     "chef tv": "chef-tv",
     "comedy central": "comedy-central",
     "cultura fast": "cultura-fast",
-    "canal sony": "sony",
     "fifa": "fifa",
     "fifa portugues": "fifa",
     mtv: "mtv",
@@ -334,19 +332,10 @@ var SaimoEpg = {
     "sportv 1": "sportv",
     "star channel": "star-channel",
     "tv a critica": "tv-a-critica",
-    "hbo pop": "hbo-pop",
-    "canal uol": "canal-uol",
     uol: "canal-uol",
     bbc: "bbc-world",
-    tlc: "tlc",
-    "ge tv": "ge-tv",
-    getv: "ge-tv",
     "cnn internacional": "cnn-brasil",
     "cnn international": "cnn-brasil",
-    "discovery theater": "discovery-theater",
-    "discovery theather": "discovery-theater",
-    "film arts": "film-arts",
-    "cancao nova": "cancao-nova",
     "tv cancao nova": "cancao-nova"
   },
   fold: function fold(s) {
@@ -509,6 +498,7 @@ var SaimoEpg = {
     var _this2 = this;
     if (this._cacheTimer) clearTimeout(this._cacheTimer);
     this._cacheTimer = setTimeout(function () {
+      var t0 = Date.now();
       try {
         var slim = {};
         Object.keys(_this2.byName).forEach(function (k) {
@@ -525,6 +515,7 @@ var SaimoEpg = {
         });
         localStorage.setItem(_this2.CACHE_KEY, JSON.stringify(slim));
         localStorage.setItem(_this2.CACHE_AT, String(Date.now()));
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "epg cache: " + (Date.now() - t0) + "ms");
       } catch (e) {
         if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("armazenamento_erro", "epg_cache: " + ((e && e.message) || ""));
       }
@@ -1014,10 +1005,14 @@ var SaimoEpg = {
   },
   aplicarJson: function aplicarJson(data) {
     var _this8 = this;
+    var t0 = Date.now();
+    var n = 0;
     var ch = data && data.channels || {};
     Object.keys(ch).forEach(function (nome) {
+      n++;
       return _this8.guardar(nome, ch[nome]);
     });
+    if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "epg aplicar: " + n + " canais · " + (Date.now() - t0) + "ms");
   },
   ensure: function ensure() {
     var _this9 = this;
@@ -1044,7 +1039,19 @@ var SaimoEpg = {
                   case 0:
                     _context5.p = 0;
                     _context5.n = 1;
-                    return fetch(_this9.LOCAL);
+                    /* fetch() em file:// é bloqueado no Chrome 94 (webOS 23); XHR passa.
+                       Adaptador devolve "resposta" com ok/text/json p/ o gerador abaixo. */
+                    return (window.SaimoAPI && SaimoAPI.fetchTextXhr ? SaimoAPI.fetchTextXhr(_this9.LOCAL).then(function (txt) {
+                      return {
+                        ok: !!txt,
+                        status: txt ? 200 : 0,
+                        text: function () { return Promise.resolve(txt || ""); },
+                        json: function () {
+                          try { return Promise.resolve(JSON.parse(txt || "{}")); }
+                          catch (eJ) { return Promise.reject(eJ); }
+                        }
+                      };
+                    }) : fetch(_this9.LOCAL));
                   case 1:
                     res = _context5.v;
                     if (!res.ok) {

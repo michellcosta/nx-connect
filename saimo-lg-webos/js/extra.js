@@ -201,45 +201,67 @@ var SaimoExtra = {
     return jogos;
   },
   json: function json(url) {
-    return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-      var ctrl, t, res, _t;
-      return _regenerator().w(function (_context) {
-        while (1) switch (_context.p = _context.n) {
-          case 0:
-            ctrl = new AbortController();
-            t = setTimeout(function () {
-              return ctrl.abort();
-            }, 8000);
-            _context.p = 1;
-            _context.n = 2;
-            return fetch(url, {
-              signal: ctrl.signal
+    /* XHR primeiro: é o caminho provado na TV (mesmo padrão do fetchTextXhr —
+       em file:// o sucesso vem com status 0 e conteúdo legível). O fetch com
+       AbortController falhou para a ESPN na webOS 23 (todas_ligas_vazias na
+       1.0.25/26) mesmo com CORS OK do endpoint. Timeout 12s. */
+    return new Promise(function (resolve) {
+      var fechou = false;
+      function fim(v) {
+        if (fechou) return;
+        fechou = true;
+        resolve(v);
+      }
+      function viaFetch() {
+        try {
+          var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+          var t = ctrl ? setTimeout(function () {
+            try { ctrl.abort(); } catch (eA) {}
+          }, 12000) : null;
+          fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (res) {
+            if (t) clearTimeout(t);
+            if (!res.ok) return fim(null);
+            res.json().then(function (j) {
+              fim(j);
+            }, function () {
+              fim(null);
             });
-          case 2:
-            res = _context.v;
-            if (res.ok) {
-              _context.n = 3;
-              break;
-            }
-            return _context.a(2, null);
-          case 3:
-            _context.n = 4;
-            return res.json();
-          case 4:
-            return _context.a(2, _context.v);
-          case 5:
-            _context.p = 5;
-            _t = _context.v;
-            return _context.a(2, null);
-          case 6:
-            _context.p = 6;
-            clearTimeout(t);
-            return _context.f(6);
-          case 7:
-            return _context.a(2);
+          }, function () {
+            if (t) clearTimeout(t);
+            fim(null);
+          });
+        } catch (eF) {
+          fim(null);
         }
-      }, _callee, null, [[1, 5, 6, 7]]);
-    }))();
+      }
+      try {
+        if (typeof XMLHttpRequest === "undefined") {
+          viaFetch();
+          return;
+        }
+        var x = new XMLHttpRequest();
+        x.open("GET", url, true);
+        x.timeout = 12000;
+        x.onload = function () {
+          if ((x.status >= 200 && x.status < 300) || (x.status === 0 && x.responseText)) {
+            try {
+              fim(JSON.parse(x.responseText));
+            } catch (eJ) {
+              fim(null);
+            }
+          } else viaFetch();
+        };
+        x.onerror = function () {
+          viaFetch();
+        };
+        x.ontimeout = function () {
+          viaFetch();
+        };
+        x.send();
+      } catch (eX) {
+        viaFetch();
+      }
+    });
   },
   texto: function texto(url) {
     return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {

@@ -1,1 +1,32 @@
-window.SAIMO_VOD_BASES = {"0":"http://desativado.invalid/up.kiwi/movie/351921603109/34939156/","1":"http://desativado.invalid/up.kiwi/series/351921603109/34939156/","2":"http://tjtor8411.com:80/movie/Osiel123/Felicidade321/","3":"http://tjtor8411.com:80/series/Osiel123/Felicidade321/","4":"http://desativado.invalid/hubby.cx/movie/Pdsrv-vods/726216683528qroqv/","5":"http://desativado.invalid/hubby.cx/series/Pdsrv-vods/726216683528qroqv/","6":"http://proxy.nr3.xyz:80/movie/daniellytvc/danielly2396/","7":"http://proxy.nr3.xyz:80/series/daniellytvc/danielly2396/","8":"http://tvonhdbr.com:80/movie/493754/NqCxf1/","9":"http://tvonhdbr.com:80/series/493754/NqCxf1/","10":"http://corruptx.org:80/movie/3llohwk4g9/kwf099q30o/","11":"http://corruptx.org:80/series/3llohwk4g9/kwf099q30o/","12":"http://vaiagora.vip:80/movie/5q8VUj/5BeUd8/","13":"http://vaiagora.vip:80/series/5q8VUj/5BeUd8/","14":"http://vivlar.me:80/movie/497238/KK8Kdy/","15":"http://vivlar.me:80/series/497238/KK8Kdy/","16":"http://corruptx.org:80/movie/hfp5ejnrey/zq0u3kzads/","17":"http://corruptx.org:80/series/hfp5ejnrey/zq0u3kzads/","18":"http://desativado.invalid/hubby-dmca.com/movie/","19":"http://desativado.invalid/hubby-dmca.com/series/"};
+/* Fontes VOD vivem na nuvem (nx-conexao.pages.dev/v1/bases), semeadas com
+   segredo via env — sem credenciais no IPK nem no git (item da auditoria).
+   Troca/revogação de fonte: POST /v1/bases/definir, sem gerar IPK novo.
+   O bloco abaixo busca e sobrepõe; sem nuvem, o app segue com as listas
+   do usuário (Xtream pareado / M3U). Backup do antigo: melhorias/vod_bases-embutido-backup.json */
+window.SAIMO_VOD_BASES = {};
+/* Bases remotas (nx-conexao.pages.dev): quando chegam, sobrepõem o pacote
+   embutido — dá para trocar/revogar fonte sem gerar IPK novo. Os consumidores
+   (catalogo.js, api.js) leem o global a cada uso, então a troca vale na hora. */
+(function () {
+  try {
+    var x = new XMLHttpRequest();
+    x.open("GET", "https://nx-conexao.pages.dev/v1/bases", true);
+    x.timeout = 15000;
+    x.onload = function () {
+      try {
+        var j = JSON.parse(x.responseText || "{}");
+        var b = j && j.bases;
+        if (!b || typeof b !== "object") return;
+        var n = 0;
+        var k;
+        for (k in b) {
+          if (b[k]) n++;
+        }
+        if (!n) return;
+        window.SAIMO_VOD_BASES = b;
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("bases", "remotas: " + n + " fontes (sobrepõem o pacote)");
+      } catch (eB) {}
+    };
+    x.send();
+  } catch (eR) {}
+})();

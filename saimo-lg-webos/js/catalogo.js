@@ -156,7 +156,8 @@ var SaimoCatalogo = (function () {
   }
 
   function carregarArquivoLetra(tipo, letraGaveta, callback, resolve, reject, cache, chavePromise) {
-    var nomeLetra = letraGaveta === '#' ? '#' : letraGaveta;
+    /* '#' na URL vira fragmento e corta o caminho: usa %23 (igual ao site). */
+    var nomeLetra = letraGaveta === '#' ? '%23' : letraGaveta;
     if (tipo === 'series') {
       var arquivoIndice = 'vod/series-' + nomeLetra + '.txt';
       xhrGet(arquivoIndice, function (err, txt) {

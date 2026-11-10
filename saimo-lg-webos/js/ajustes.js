@@ -26,23 +26,39 @@ var SaimoAjustes = {
     xtreamHost: "",
     xtreamUser: "",
     xtreamPass: "",
-    pacoteEmbutido: false
+    pacoteEmbutido: false,
+    pularAbertura: false
   },
+  _rawCache: null,
+  _versao: 0,
   ler: function ler() {
-    try {
-      var raw = JSON.parse(localStorage.getItem(this.KEY) || "{}");
-      var atual = Object.assign({}, this.padrao, raw);
-      if (raw.catalogoMeu === undefined && String(raw.urlVod || "").trim()) {
-        atual.catalogoMeu = true;
-        if (raw.catalogoSaimo === undefined) atual.catalogoSaimo = false;
+    /* Cache do JSON parseado: JSON.parse(localStorage.getItem) a cada chamada
+       custou ~2,1 s só de ajustes no perfil de CPU (getItem é IPC síncrono e
+       lento na TV). O Object.assign final fica igual ao código antigo — cada
+       chamada devolve objeto fresco, sem risco de mutação do cache. Cache
+       invalidado ao gravar e no evento storage (outra página mudou).
+       _versao sobe a cada mudança: consumidores quentes (xtream ligado/perfil)
+       comparam a versão em vez de reler tudo. */
+    if (this._rawCache === null) {
+      var raw = {};
+      try {
+        raw = JSON.parse(localStorage.getItem(this.KEY) || "{}") || {};
+      } catch (e) {
+        raw = {};
       }
-      return atual;
-    } catch (e) {
-      return Object.assign({}, this.padrao);
+      if (raw.catalogoMeu === undefined && String(raw.urlVod || "").trim()) {
+        raw.catalogoMeu = true;
+        if (raw.catalogoSaimo === undefined) raw.catalogoSaimo = false;
+      }
+      this._rawCache = raw;
     }
+    return Object.assign({}, this.padrao, this._rawCache);
   },
   gravar: function gravar(parcial) {
     var atual = Object.assign(this.ler(), parcial || {});
+    this._rawCache = Object.assign({}, atual);
+    this._versao++;
+    window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
     try {
       localStorage.setItem(this.KEY, JSON.stringify(atual));
     } catch (e) {
@@ -52,7 +68,12 @@ var SaimoAjustes = {
     return atual;
   },
   get: function get(chave) {
-    return this.ler()[chave];
+    /* Leitura direta do cache, sem copiar objeto: get() rodava ~260 mil vezes
+       ao abrir hub+Filmes (1 cópia de ~40 chaves cada). Chave ausente cai no
+       padrão. */
+    if (this._rawCache === null) this.ler();
+    var v = this._rawCache[chave];
+    return v === undefined ? this.padrao[chave] : v;
   },
   pin: function pin() {
     try {
@@ -137,6 +158,16 @@ document.addEventListener("DOMContentLoaded", function () {
   return SaimoAjustes.aplicar();
 });
 window.SaimoAjustes = SaimoAjustes;
+/* Outra página/página antiga mudou os ajustes: solta o cache pra reler. */
+try {
+  window.addEventListener("storage", function (ev) {
+    if (!ev || ev.key === SaimoAjustes.KEY) {
+      SaimoAjustes._rawCache = null;
+      SaimoAjustes._versao++;
+      window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
+    }
+  });
+} catch (eSt) {}
 
 /**
  * Áudio Inteligente: nivela o volume entre canais e fontes (igual ao site).

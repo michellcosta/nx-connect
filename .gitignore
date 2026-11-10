@@ -16,3 +16,9 @@ saimo-ligar/
 Thumbs.db
 .DS_Store
 *.log
+
+# Sessão ZCode (artefatos locais da ferramenta)
+.zcode/
+
+# Referências/rascunho (cópia dos arquivos do nx-conexao + backup com credenciais antigas)
+melhorias/

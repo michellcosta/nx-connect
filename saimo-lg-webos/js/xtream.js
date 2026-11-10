@@ -574,19 +574,32 @@ var SaimoXtream = (function () {
     return window.SaimoAjustes ? SaimoAjustes.ler() : {};
   }
 
-  function perfilSalvo() {
-    var a = lerAjustes();
+  /* perfilSalvo/ligado rodavam por TÍTULO no itemTemPlay (2 ler() completos
+     cada = ~780 mil cópias ao abrir hub+Filmes). Agora refazem o cálculo só
+     quando a versão dos ajustes muda (gravar/storage). */
+  var _ajVer = -1;
+  var _ajPerfil = null;
+  var _ajLigado = false;
+  function refrescarAjustes() {
+    var v = window.SaimoAjustes ? SaimoAjustes._versao : 0;
+    if (v === _ajVer) return;
+    _ajVer = v;
+    var a = window.SaimoAjustes ? SaimoAjustes.ler() : {};
     var host = String(a.xtreamHost || '').trim();
     var user = String(a.xtreamUser || '').trim();
     var pass = String(a.xtreamPass || '');
-    if (!host || !user || !pass) return null;
-    return { host: sanitizeHost(host), username: user, password: pass };
+    _ajPerfil = host && user && pass ? { host: sanitizeHost(host), username: user, password: pass } : null;
+    _ajLigado = !!(_ajPerfil && !a.xtreamOff);
+  }
+
+  function perfilSalvo() {
+    refrescarAjustes();
+    return _ajPerfil;
   }
 
   function ligado() {
-    var a = lerAjustes();
-    if (!perfilSalvo()) return false;
-    return !a.xtreamOff;
+    refrescarAjustes();
+    return _ajLigado;
   }
 
   function chaveTitulo(s) {
@@ -740,6 +753,7 @@ var SaimoXtream = (function () {
     else cache.filmes = {};
     if (raw.series && typeof raw.series === 'object' && !Array.isArray(raw.series)) cache.series = compactarMapaVod(raw.series, 'series');
     else cache.series = {};
+    window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
     cache.ts = raw.ts || 0;
     cache.host = raw.host || '';
     cache.user = raw.user || '';

@@ -166,6 +166,62 @@ var SaimoDiagnostico = (function () {
     pintarPainel();
   }
 
+  /* ── Diagnóstico remoto (nx-conexao.pages.dev) ──────────────────────────
+     A TV sobe o buffer do HUD a cada 30s para /v1/diag/enviar; o dev lê em
+     /log com o ID da TV. Falha é silenciosa (só registra uma vez). */
+  var NUVEM_DIAG = 'https://nx-conexao.pages.dev';
+  var _idTv = '';
+  var _diagTimer = 0;
+  var _diagErroLogado = false;
+
+  function idDaTv() {
+    if (_idTv) return _idTv;
+    try {
+      _idTv = String(localStorage.getItem('saimo_tv_id') || '');
+    } catch (eId) { _idTv = ''; }
+    if (!/^[A-Z0-9]{4,12}$/.test(_idTv)) {
+      var ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      _idTv = '';
+      for (var i = 0; i < 6; i++) _idTv += ABC.charAt(Math.floor(Math.random() * ABC.length));
+      try { localStorage.setItem('saimo_tv_id', _idTv); } catch (eId2) {}
+    }
+    return _idTv;
+  }
+
+  function subirDiag() {
+    var id = idDaTv();
+    if (!id) return;
+    var sys = detectarWebOS();
+    var carga = {
+      tv: id,
+      sistema: (sys.sistema || '') + ' · ' + (sys.resolucao || ''),
+      memoria: (memoriaMB() != null ? memoriaMB() + ' MB' : ''),
+      versao: (typeof window !== 'undefined' && window.SAIMO_VERSAO) || '',
+      linhas: _linhas.slice(0, 24),
+      eventos: _playbackLogs.slice(0, 40)
+    };
+    try {
+      var x = new XMLHttpRequest();
+      x.open('POST', NUVEM_DIAG + '/v1/diag/enviar', true);
+      x.timeout = 12000;
+      x.setRequestHeader('Content-Type', 'application/json');
+      x.onload = function () { _diagErroLogado = false; };
+      x.onerror = function () {
+        if (!_diagErroLogado) { _diagErroLogado = true; linha('diag remoto: sem conexão (segue tentando a cada 30s)'); }
+      };
+      x.ontimeout = x.onerror;
+      x.send(JSON.stringify(carga));
+    } catch (eDiag) {
+      if (!_diagErroLogado) { _diagErroLogado = true; linha('diag remoto: ' + (eDiag && eDiag.message)); }
+    }
+  }
+
+  function ligarDiagRemoto() {
+    if (_diagTimer) return;
+    subirDiag();
+    _diagTimer = setInterval(subirDiag, 30000);
+  }
+
   function logEvento(tipo, detalhe) {
     var entrada = {
       ts: Date.now(),
@@ -243,9 +299,31 @@ var SaimoDiagnostico = (function () {
     (document.body || document.documentElement).appendChild(el);
     _overlayEl = el;
     linha('log ligado em ' + location.href);
+    linha('ID desta TV: ' + idDaTv() + ' · leia em nx-conexao.pages.dev/log');
   }
 
   vigiarMemoria();
+  ligarDiagRemoto();
+
+  /* Erros JS não capturados vão para o log remoto — a 1.0.22 matou o init
+     com um TypeError silencioso e só descobrimos por dedução. Nunca mais. */
+  try {
+    window.addEventListener('error', function (ev) {
+      var msg = ev && (ev.message || (ev.error && ev.error.message)) || 'erro desconhecido';
+      var onde = ev && (ev.filename ? ' · ' + String(ev.filename).split('/').pop() + ':' + ev.lineno : '');
+      logEvento('erro js', msg + onde);
+    });
+  } catch (eErr) {}
+
+  /* Batimento: uma linha a cada 20 s. Se a TV travar, a última linha do HUD
+     mostra se o JS morreu (batimentos param) e o que rodava justo antes. */
+  (function () {
+    var t0 = Date.now();
+    window._saimoBootT0 = t0; /* base p/ as medições perf_* do app */
+    setInterval(function () {
+      try { logEvento('batimento', Math.round((Date.now() - t0) / 1000) + 's de ligado'); } catch (eB) {}
+    }, 20000);
+  }());
 
   return {
     maskUrl: maskUrl,

@@ -189,13 +189,14 @@ var SaimoCapas = {
       Array.prototype.forEach.call(track.querySelectorAll(".home-mini"), function (c, ci) {
         items[ci] = getItem(ri, ci);
       });
-      var top = _this3.indicesTop4(items);
+      var leve = _this3.ehLeve();
+      var top = leve ? _this3.indicesTop4(items) : null;
       Array.prototype.forEach.call(track.querySelectorAll(".home-mini"), function (card, ci) {
         if (card.querySelector("img")) return;
         var item = items[ci];
         if (!item || !(item.title || item.name)) return;
         if (item.type === "channel" || item.type === "jogo" || item.type === "acao") return;
-        if (!top[ci]) return;
+        if (leve && !top[ci]) return;
         _this3.pedir(item, card, true);
       });
     });
@@ -204,6 +205,7 @@ var SaimoCapas = {
   atualizarJanelaGrade: function (gridEl, items, foco) {
     if (!gridEl || !items || !items.length) return;
     var _this4 = this;
+    var leve = this.ehLeve();
     var g = gridEl.getBoundingClientRect();
     var folga = 120;
     Array.prototype.forEach.call(gridEl.querySelectorAll(".od-poster"), function (card) {
@@ -213,24 +215,26 @@ var SaimoCapas = {
       if (!item) return;
       var r = card.getBoundingClientRect();
       var visivel = r.bottom > g.top - folga && r.top < g.bottom + folga;
-      var naLinha = _this4.naJanelaGrade(idx, foco);
+      var naLinha = leve && _this4.naJanelaGrade(idx, foco);
       if (visivel || naLinha) _this4.pedir(item, card, visivel || Math.abs(idx - (foco || 0)) <= 1);
-      else _this4.liberar(card);
+      else if (leve) _this4.liberar(card);
     });
   },
 
   atualizarJanelaTrack: function (track, items, focoCol) {
     if (!track || !items || !items.length) return;
     var _this5 = this;
-    var top = this.indicesTop4(items);
+    /* Fora do webOS (debug/mouse) não há motivo pra janela: carrega tudo. */
+    var leve = this.ehLeve();
+    var top = leve ? this.indicesTop4(items) : null;
     var foco = focoCol == null ? -999 : focoCol;
     Array.prototype.forEach.call(track.querySelectorAll(".home-mini"), function (card, ci) {
       var item = items[ci];
       if (!item || !(item.title || item.name)) return;
       if (item.type === "channel" || item.type === "jogo" || item.type === "acao") return;
-      var carregar = top[ci] || Math.abs(ci - foco) <= _this5.JANELA;
+      var carregar = !leve || top[ci] || Math.abs(ci - foco) <= _this5.JANELA;
       if (carregar) _this5.pedir(item, card, Math.abs(ci - foco) <= 1);
-      else if (!top[ci]) _this5.liberar(card);
+      else if (leve && !top[ci]) _this5.liberar(card);
     });
   },
 

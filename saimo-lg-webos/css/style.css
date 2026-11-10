@@ -1550,6 +1550,8 @@ body {
 #settings-screen,
 #home-edit-screen,
 #jogos-hoje-screen,
+#tabela-screen,
+#ficha-jogo-screen,
 #radios-card-screen,
 #pin-screen,
 #cats-mais-screen {
@@ -1557,6 +1559,8 @@ body {
 }
 
 #jogos-hoje-screen.active,
+#tabela-screen.active,
+#ficha-jogo-screen.active,
 #radios-card-screen.active {
   display: flex;
   align-items: center;
@@ -1587,7 +1591,401 @@ body {
 
 #jogos-hoje-list {
   overflow-y: auto;
-  max-height: 740px;
+  max-height: 600px;
+}
+
+/* ---------- Fileira de dias no painel Jogos de hoje ---------- */
+
+.jogos-hoje-dias {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.jogos-hoje-dica {
+  flex-shrink: 0;
+  margin-top: 14px;
+  font-size: 21px;
+  color: #7c8798;
+  text-align: center;
+}
+
+.jogo-dia-chip {
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: #121824;
+  color: #cbd5e1;
+  font-size: 24px;
+  font-weight: 700;
+  padding: 10px 26px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.jogo-dia-chip.is-current {
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.jogo-dia-tabelas {
+  border-color: #2563eb;
+  color: #93c5fd;
+  font-weight: 800;
+}
+
+.jogo-dia-chip.focused,
+.tabela-chip.focused {
+  background: #fff;
+  color: #0a0d14;
+  border-color: #fff;
+}
+
+.jogo-dia-chip.is-current.focused,
+.tabela-chip.is-current.focused {
+  color: #0a0d14;
+}
+
+/* ---------- Tela de Tabelas ---------- */
+
+.tabela-card {
+  position: relative;
+  z-index: 2;
+  width: 1560px;
+  max-height: 900px;
+  background: linear-gradient(180deg, #182436 0%, #101826 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 36px 40px 28px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.tabela-card h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tabela-chips {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+.tabela-chip {
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: #121824;
+  color: #cbd5e1;
+  font-size: 22px;
+  font-weight: 700;
+  padding: 8px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tabela-chip.is-current {
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.tabela-list {
+  overflow-y: auto;
+  max-height: 620px;
+}
+
+.tabela-row {
+  display: flex;
+  align-items: center;
+  background: #121824;
+  border: 3px solid transparent;
+  border-radius: 14px;
+  padding: 10px 22px;
+  margin-bottom: 8px;
+}
+
+.tabela-row.focused {
+  border-color: #fff;
+  background: #1c2740;
+}
+
+.tabela-head {
+  background: transparent;
+  color: #94a3b8;
+  font-size: 22px;
+  font-weight: 800;
+  border: none;
+}
+
+.tabela-head .t-num {
+  font-weight: 800;
+}
+
+.t-pos {
+  width: 70px;
+  flex-shrink: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.t-time {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.t-escudo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #1e293b;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.t-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t-num {
+  width: 80px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.tabela-vazio {
+  color: #94a3b8;
+  font-size: 28px;
+  padding: 40px 10px;
+  text-align: center;
+}
+
+/* ---------- Ficha do jogo ---------- */
+
+.ficha-jogo-card {
+  position: relative;
+  z-index: 2;
+  width: 1560px;
+  max-height: 920px;
+  background: linear-gradient(180deg, #182436 0%, #101826 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 30px 40px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.ficha-jogo-conteudo {
+  overflow-y: auto;
+  max-height: 840px;
+}
+
+.ficha-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 6px 10px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
+}
+
+.ficha-escudo {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ficha-escudo img,
+.ficha-escudo .jogo-letra {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+}
+
+.ficha-escudo .jogo-letra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #1e293b;
+  font-size: 52px;
+  font-weight: 800;
+}
+
+.ficha-escudo-nome {
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ficha-meio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ficha-placar {
+  font-size: 76px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.ficha-meta {
+  font-size: 26px;
+  color: #94a3b8;
+}
+
+.ficha-assistir {
+  margin-top: 18px;
+  border: 3px solid transparent;
+  background: #2563eb;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 14px 44px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ficha-assistir.focused {
+  background: #fff;
+  color: #0a0d14;
+  border-color: #fff;
+}
+
+.ficha-colunas {
+  display: flex;
+  gap: 26px;
+}
+
+.ficha-col {
+  flex: 1;
+  min-width: 0;
+  background: #121824;
+  border-radius: 18px;
+  padding: 18px 22px;
+}
+
+.ficha-col-topo {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.ficha-sub {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 14px 0 6px;
+}
+
+.ficha-jogador {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 26px;
+  padding: 4px 0;
+}
+
+.ficha-camisa {
+  width: 52px;
+  flex-shrink: 0;
+  text-align: center;
+  background: #1e293b;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 22px;
+  padding: 2px 0;
+}
+
+.ficha-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ficha-pos {
+  color: #94a3b8;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.ficha-timeline {
+  margin-top: 24px;
+  background: #121824;
+  border-radius: 18px;
+  padding: 18px 22px;
+}
+
+.ficha-timeline .ficha-sub {
+  margin-top: 0;
+}
+
+.ficha-ev {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 26px;
+  padding: 5px 0;
+}
+
+.ficha-ev-min {
+  width: 70px;
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.ficha-ev.gol .ficha-ev-texto {
+  font-weight: 800;
+  color: #4ade80;
+}
+
+.ficha-ev.cartao .ficha-ev-texto {
+  color: #fbbf24;
+}
+
+.ficha-jogo-conteudo .tabela-vazio {
+  padding: 60px 10px;
 }
 
 .jogo-hoje-item {
@@ -1651,6 +2049,17 @@ body {
   font-weight: 800;
   color: #94a3b8;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.jogo-hoje-placar {
+  font-size: 32px;
+  font-weight: 800;
+  color: #f8fafc;
+  min-width: 26px;
+  text-align: center;
 }
 
 .jogo-hoje-info {
@@ -1664,6 +2073,11 @@ body {
 
 .jogo-hoje-estado.vivo {
   color: #ef4444;
+  font-weight: 800;
+}
+
+.jogo-hoje-estado.fim {
+  color: #94a3b8;
   font-weight: 800;
 }
 

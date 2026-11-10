@@ -37,7 +37,8 @@
   var jaIniciou = false;
   try {
     jaIniciou = sessionStorage.getItem('saimo_abertura_vista') === '1' ||
-                localStorage.getItem('saimo_pular_abertura') === '1';
+                localStorage.getItem('saimo_pular_abertura') === '1' ||
+                !!(window.SaimoAjustes && SaimoAjustes.get('pularAbertura'));
   } catch (e) {}
 
   if (jaIniciou || !caixa || !video) {

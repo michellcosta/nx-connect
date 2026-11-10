@@ -48,6 +48,16 @@ var SaimoFicha = {
   eps: Object.create(null),
   loaded: false,
   loading: null,
+  _falhasLogadas: Object.create(null),
+  logarFalha: function logarFalha(url, motivo) {
+    if (!url) return;
+    if (this._falhasLogadas[url]) return;
+    this._falhasLogadas[url] = 1;
+    if (window.SaimoDiagnostico) {
+      var mascara = SaimoDiagnostico.maskUrl ? SaimoDiagnostico.maskUrl(String(url)) : String(url);
+      SaimoDiagnostico.logEvento("ficha_fonte_erro", motivo + " · " + mascara);
+    }
+  },
   cache: Object.create(null),
   seasonCache: Object.create(null),
   posterCache: Object.create(null),
@@ -58,8 +68,23 @@ var SaimoFicha = {
   MAX_FICHAS: 300,
   MAX_TEMPS: 150,
   MAX_CAPAS: 400,
+  _foldCache: null,
+  _foldCount: 0,
   fold: function fold(s) {
-    return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s*\(\d{4}\)\s*$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+    /* Memoizado: NFD + 3 regexes por chamada; fold roda em todo título
+       consultado (chave, tmdbId, posterDe). Limite por contador, não por
+       Object.keys — por miss era O(cache) e engasgou a TV na 1.0.11. */
+    s = String(s || "");
+    if (this._foldCache === null) this._foldCache = Object.create(null);
+    if (this._foldCache[s] !== undefined) return this._foldCache[s];
+    var r = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s*\(\d{4}\)\s*$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+    if (this._foldCount > 8000) {
+      this._foldCache = Object.create(null);
+      this._foldCount = 0;
+    }
+    this._foldCache[s] = r;
+    this._foldCount++;
+    return r;
   },
   semAno: function semAno(titulo) {
     return String(titulo || "").replace(/\s*\(\d{4}\)\s*$/, "").trim();
@@ -68,55 +93,91 @@ var SaimoFicha = {
     return (isSeries ? "s:" : "f:") + this.fold(title);
   },
   texto: function texto(url) {
-    return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
-      var res, _t;
-      return _regenerator().w(function (_context) {
-        while (1) switch (_context.p = _context.n) {
-          case 0:
-            _context.p = 0;
-            _context.n = 1;
-            return fetch(url);
-          case 1:
-            res = _context.v;
-            if (res.ok) {
-              _context.n = 2;
-              break;
-            }
-            return _context.a(2, "");
-          case 2:
-            _context.n = 3;
-            return res.text();
-          case 3:
-            return _context.a(2, _context.v);
-          case 4:
-            _context.p = 4;
-            _t = _context.v;
-            return _context.a(2, "");
+    /* XHR primeiro: em file:// o fetch() nativo é bloqueado por segurança
+       (webOS 23 / Chrome 94 — "Failed to fetch" nos vod/* da TV). O XHR
+       ainda passa no container; para file:// o sucesso vem com status 0. */
+    return new Promise(function (resolve) {
+      var fechou = false;
+      function fim(txt, motivo) {
+        if (fechou) return;
+        fechou = true;
+        if (txt) {
+          delete SaimoFicha._falhasLogadas[url];
+          resolve(txt);
+          return;
         }
-      }, _callee, null, [[0, 4]]);
-    }))();
+        if (motivo) SaimoFicha.logarFalha(url, motivo);
+        resolve("");
+      }
+      function viaFetch() {
+        fetch(url).then(function (res) {
+          if (!res.ok) {
+            fim("", "HTTP " + res.status);
+            return;
+          }
+          res.text().then(function (t) {
+            fim(t);
+          }, function (eT) {
+            fim("", "rede: " + (eT && eT.message || eT));
+          });
+        }, function (eF) {
+          fim("", "rede: " + (eF && eF.message || eF) + " · fetch e XHR falharam");
+        });
+      }
+      var xhr;
+      try {
+        if (typeof XMLHttpRequest === "undefined") {
+          viaFetch();
+          return;
+        }
+        xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.timeout = 20000;
+        xhr.onload = function () {
+          if ((xhr.status >= 200 && xhr.status < 300) || (xhr.status === 0 && xhr.responseText)) fim(xhr.responseText || "");
+          else viaFetch();
+        };
+        xhr.onerror = function () {
+          viaFetch();
+        };
+        xhr.ontimeout = function () {
+          viaFetch();
+        };
+        xhr.send();
+      } catch (eX) {
+        viaFetch();
+      }
+    });
   },
   percorrer: function percorrer(lines, fn) {
+    /* Fatiado por TEMPO, não por contagem: cada bloco roda até ~12 ms e cede a
+       main thread — o foco do controle continua respondendo durante a indexação
+       do fichas (4,4 MB). Lotes fixos de 200 linhas engarrafavam a abertura:
+       cada yield volta clamped a ~4 ms pelo Chrome (~200 pausas por arquivo). */
     return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
-      var passo, i;
+      var passo, i, t0;
       return _regenerator().w(function (_context2) {
         while (1) switch (_context2.n) {
           case 0:
-            passo = 200;
+            passo = 2000;
             i = 0;
+            t0 = Date.now();
           case 1:
             if (!(i < lines.length)) {
               _context2.n = 3;
               break;
             }
             fn(lines[i]);
-            if (!((i + 1) % passo === 0)) {
+            if (!((i + 1) % passo === 0 || Date.now() - t0 > 12)) {
               _context2.n = 2;
               break;
             }
             _context2.n = 2;
             return new Promise(function (r) {
-              return setTimeout(r, 0);
+              setTimeout(function () {
+                t0 = Date.now();
+                r();
+              }, 0);
             });
           case 2:
             i++;
@@ -128,7 +189,116 @@ var SaimoFicha = {
       }, _callee2);
     }))();
   },
+  _indexWorker: null,
+  _indexWorkerFalhou: false,
+  _indexReqId: 0,
+  /* Indexação em Web Worker: o parse de ~95 mil títulos custava 11,2s de
+     main thread na TV (foco engarrafado). O worker parseia em paralelo e
+     devolve as estruturas via structured clone (referências preservadas).
+     Sem Worker (webOS antigo) ou em erro: cai no parse local fatiado. */
   indexarIds: function indexarIds(text) {
+    var self = this;
+    if (this._indexWorkerFalhou || typeof Worker === "undefined") {
+      return this.indexarIdsMain(text);
+    }
+    return this.indexarViaWorker(text).catch(function () {
+      self._indexWorkerFalhou = true;
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "indice worker falhou; parse local");
+      return self.indexarIdsMain(text);
+    });
+  },
+  indexarViaWorker: function indexarViaWorker(text) {
+    var self = this;
+    return new Promise(function (resolve, reject) {
+      try {
+        if (!self._indexWorker) {
+          self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt132");
+        }
+        var w = self._indexWorker;
+        var reqId = ++self._indexReqId;
+        var vigilante = null;
+        function rearmar() {
+          if (vigilante) clearTimeout(vigilante);
+          vigilante = setTimeout(function () {
+            if (self._indexWorker) {
+              self._indexWorker.terminate();
+              self._indexWorker = null;
+            }
+            reject(new Error("worker sem resposta"));
+          }, 90000);
+        }
+        rearmar();
+        var handler = function (ev) {
+          var d = ev.data || {};
+          if (d.cmd === "indice-chunk" && d.reqId === reqId) {
+            rearmar();
+            if (d.inicio) self.aplicarInicioIndice(d);
+            self.aplicarChunkIndice(d);
+            return;
+          }
+          if (d.cmd === "indexado-fim" && d.reqId === reqId) {
+            w.removeEventListener("message", handler);
+            if (vigilante) clearTimeout(vigilante);
+            self._genCache.f = null;
+            self._genCache.s = null;
+            if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "indice worker: " + (d.ms || 0) + "ms parse · " + (d.total || 0) + " titulos · entregue em blocos");
+            resolve(d.ms || 0);
+          }
+        };
+        w.addEventListener("message", handler);
+        w.postMessage({
+          cmd: "indexar",
+          reqId: reqId,
+          texto: String(text || ""),
+          posterBase: self.posterBase
+        });
+      } catch (eW) {
+        reject(eW);
+      }
+    });
+  },
+  aplicarInicioIndice: function aplicarInicioIndice(d) {
+    /* Mapas zerados com protótipo nulo (títulos viram chaves — sem risco de
+       colisão com Object.prototype) e reconstruídos por bloco: o structured
+       clone de um pacote único deserializava 3,3s de uma vez na main thread. */
+    this.posterBase = String(d.posterBase || this.posterBase);
+    this.ids.f = Object.create(null);
+    this.ids.s = Object.create(null);
+    this.meta.f = Object.create(null);
+    this.meta.s = Object.create(null);
+    this.byTmdb.f = Object.create(null);
+    this.byTmdb.s = Object.create(null);
+    this.lista.f = [];
+    this.lista.s = [];
+  },
+  aplicarChunkIndice: function aplicarChunkIndice(d) {
+    var ids = this.ids[d.tipo];
+    var meta = this.meta[d.tipo];
+    var lista = this.lista[d.tipo];
+    var byTmdb = this.byTmdb[d.tipo];
+    var itens = d.itens || [];
+    for (var i = 0; i < itens.length; i++) {
+      var it = itens[i];
+      if (it.id) {
+        ids[it.t] = it.id;
+        ids[it.sa] = it.id;
+        ids[it.f] = it.id;
+      }
+      if (!it.c && !it.g) continue;
+      var rec = {
+        tmdb: it.id,
+        titulo: it.t,
+        ano: it.a,
+        capa: it.c,
+        generos: it.g || []
+      };
+      meta[it.f] = rec;
+      meta[this.fold(it.sa)] = rec;
+      lista.push(rec);
+      if (it.id) byTmdb[it.id] = rec;
+    }
+  },
+  indexarIdsMain: function indexarIdsMain(text) {
     var _this = this;
     return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3() {
       var lines;
@@ -304,7 +474,7 @@ var SaimoFicha = {
               _context7.n = 1;
               break;
             }
-            return _context7.a(2);
+            return _context7.a(2, Promise.resolve());
           case 1:
             if (!_this5.loading) {
               _context7.n = 2;
@@ -313,14 +483,17 @@ var SaimoFicha = {
             return _context7.a(2, _this5.loading);
           case 2:
             _this5.loading = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-              var local, remoto, sin, eps;
+              var local, remoto, sin, eps, t0Idx, t0Fetch;
               return _regenerator().w(function (_context6) {
                 while (1) switch (_context6.n) {
                   case 0:
+                    t0Idx = Date.now();
+                    t0Fetch = Date.now();
                     _context6.n = 1;
                     return _this5.texto(_this5.FICHAS_LOCAL);
                   case 1:
                     local = _context6.v;
+                    if (local && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "fichas fetch: " + (Date.now() - t0Fetch) + "ms · " + Math.round(local.length / 1024) + "KB");
                     if (!local) {
                       _context6.n = 3;
                       break;
@@ -375,11 +548,22 @@ var SaimoFicha = {
                     _context6.n = 11;
                     return _this5.indexarEps(eps);
                   case 11:
-                    _this5.loaded = true;
+                    if (Object.keys(_this5.ids.f).length + Object.keys(_this5.ids.s).length) {
+                      _this5.loaded = true;
+                      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "fichas total: " + (Date.now() - t0Idx) + "ms (fetch+worker+sinopses/eps)");
+                    } else {
+                      /* Local e CDN falharam: nao marca carregado — com indice vazio
+                         ficariam zeros nos generos e capas para sempre. Limpa 'loading'
+                         para retentar na proxima abertura e deixa a causa no Diagnostico. */
+                      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("fichas_vazio", "fichas local e CDN falharam; indice vazio (vai retentar)");
+                      _this5.loading = null;
+                    }
                     return _context6.a(2);
                 }
               }, _callee6);
-            }))();
+            }))().catch(function () {
+              _this5.loading = null;
+            });
             return _context7.a(2, _this5.loading);
         }
       }, _callee7);
@@ -387,10 +571,23 @@ var SaimoFicha = {
   },
   atualizarIndiceSegundoPlano: function atualizarIndiceSegundoPlano(local) {
     var self = this;
-    this.texto(this.FICHAS_URL).then(function (remoto) {
-      if (!remoto || remoto.length < String(local || "").length + 80) return null;
-      return self.indexarIds(remoto);
-    }).catch(function () {});
+    /* Reindexar o fichas do CDN (4,4 MB) custa segundos de main thread na TV.
+       O índice local do IPK já cobre a abertura: refresca só a cada 6 h E fora
+       da janela de arranque (2 min após o boot) — na 1ª abertura pós-instalação
+       o refresh dobrava o trabalho justo quando o foco precisava responder. */
+    try {
+      var ultima = parseInt(localStorage.getItem("saimo_fichas_ultima"), 10) || 0;
+      if (Date.now() - ultima < 6 * 60 * 60 * 1000) return;
+    } catch (eTs) {}
+    setTimeout(function () {
+      self.texto(self.FICHAS_URL).then(function (remoto) {
+        if (!remoto || remoto.length < String(local || "").length + 80) return null;
+        try {
+          localStorage.setItem("saimo_fichas_ultima", String(Date.now()));
+        } catch (eTs2) {}
+        return self.indexarIds(remoto);
+      }).catch(function () {});
+    }, 120000);
   },
   atualizarSinopsesSegundoPlano: function atualizarSinopsesSegundoPlano(local) {
     var self = this;

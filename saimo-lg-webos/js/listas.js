@@ -25,8 +25,22 @@ var SaimoListas = {
   fold: function fold(s) {
     return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   },
+  _chaveCache: null,
+  _chaveCount: 0,
   chave: function chave(s) {
-    return this.fold(s).replace(/[''`´]/g, "").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    /* Memoizado: chave() roda por título no fontesFilme (perfil mediu 0,41 s
+       só dela; na TV custa mais). Função pura — cache sem invalidação. */
+    if (this._chaveCache === null) this._chaveCache = Object.create(null);
+    s = String(s === undefined ? "" : s);
+    if (this._chaveCache[s] !== undefined) return this._chaveCache[s];
+    var r = this.fold(s).replace(/[''`´]/g, "").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    if (this._chaveCount > 8000) {
+      this._chaveCache = Object.create(null);
+      this._chaveCount = 0;
+    }
+    this._chaveCache[s] = r;
+    this._chaveCount++;
+    return r;
   },
   semAno: function semAno(s) {
     return String(s || "").replace(/\s*\(\d{4}\)\s*$/, "").replace(/\s+\d{4}\s*$/, "").trim();
@@ -639,6 +653,7 @@ var SaimoListas = {
     });
     this.indice = { filmes: filmes, eps: eps };
     this.indiceSuja = false;
+    window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
   },
   fontesFilme: function fontesFilme(titulo) {
     var self = this;
