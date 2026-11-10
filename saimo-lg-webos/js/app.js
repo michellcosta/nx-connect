@@ -9301,8 +9301,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function saltarParaGradeBusca() {
       if (!activeItemList.length) return;
+      var bar = document.getElementById("aovivo-busca");
+      if (bar) bar.classList.add("recolhido");
       catalogZone = "grid";
       gridIndex = 0;
+      updateCatalogFocus();
+    }
+    function reabrirTecladoBusca() {
+      /* Reabre o teclado com a query preservada (o texto não se perde:
+         aovivoBuscaQuery é estado e pintarQueryAoVivo repinta). */
+      var bar = document.getElementById("aovivo-busca");
+      if (bar) bar.classList.remove("recolhido");
+      catalogZone = "busca-kb";
+      if (aovivoBuscaKbIndex >= aovivoBuscaKeys.length) aovivoBuscaKbIndex = 0;
       updateCatalogFocus();
     }
     function typeKeyAoVivo(ch) {
@@ -9335,6 +9346,8 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (code === 39) {
           e.preventDefault();
           aovivoBuscaKbIndex = tecladoDireita(aovivoBuscaKbIndex, n, cols, !!activeItemList.length, function () {
+            var bar2 = document.getElementById("aovivo-busca");
+            if (bar2) bar2.classList.add("recolhido");
             catalogZone = "grid";
             gridIndex = Math.min(gridIndex, Math.max(0, activeItemList.length - 1));
           });
@@ -12417,7 +12430,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (currentScreen === "player") {
           if (player.cycleEngine) player.cycleEngine();else player.cycleQuality();
-        } else if (currentScreen === "radios" || currentScreen === "radioscard") openRadiosBusca();else if (currentScreen !== "search" && currentScreen !== "radiobusca") openSearch();
+        } else if (currentScreen === "radios" || currentScreen === "radioscard") openRadiosBusca();else if (currentScreen === "catalog" && aovivoBuscaAberta) reabrirTecladoBusca();else if (currentScreen !== "search" && currentScreen !== "radiobusca") openSearch();
         return;
       }
       if (code === 404) {
@@ -14014,7 +14027,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (btnOpenSearch) btnOpenSearch.addEventListener("click", openSearch);
     if (btnOpenHomeEdit) btnOpenHomeEdit.addEventListener("click", openHomeEdit);
     if (btnOpenSettings) btnOpenSettings.addEventListener("click", openSettings);
-    if (btnCatalogSearch) btnCatalogSearch.addEventListener("click", openSearch);
+    if (btnCatalogSearch) btnCatalogSearch.addEventListener("click", function () {
+      if (currentScreen === "catalog" && aovivoBuscaAberta) {
+        reabrirTecladoBusca();
+        return;
+      }
+      openSearch();
+    });
     if (btnEventsBack) btnEventsBack.addEventListener("click", returnToHome);
     if (btnRadiosBack) btnRadiosBack.addEventListener("click", returnToHome);
     if (btnRadiosBusca) btnRadiosBusca.addEventListener("click", function () {
