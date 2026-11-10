@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
       s = String(s || "");
       if (_foldCache[s] !== undefined) return _foldCache[s];
       var r = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-      if (_foldCount > 8000) {
+      if (_foldCount > 60000) {
         _foldCache = Object.create(null);
         _foldCount = 0;
       }
@@ -236,8 +236,17 @@ document.addEventListener("DOMContentLoaded", function () {
       _foldCount++;
       return r;
     }
+    var _stripYearCache = Object.create(null);
+    var _stripYearN = 0;
     function stripYear(s) {
-      return String(s || "").replace(/\s*\(\d{4}\)\s*$/, "").trim();
+      /* Memoizado: roda 2x por título na varredura de gêneros (26k únicos). */
+      s = String(s || "");
+      if (_stripYearCache[s] !== undefined) return _stripYearCache[s];
+      var r = s.replace(/\s*\(\d{4}\)\s*$/, "").trim();
+      if (_stripYearN > 30000) _stripYearCache = Object.create(null);
+      _stripYearCache[s] = r;
+      _stripYearN++;
+      return r;
     }
     function buscaChave(s) {
       return fold(s).replace(/[''`´]/g, "").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
@@ -579,7 +588,8 @@ document.addEventListener("DOMContentLoaded", function () {
       preencherCanaisAoVivo(canaisEmbutidosLista(), categoriasEmbutidas());
     }
     function recarregarCanaisOficial() {
-      if (xtreamEstaLigado()) aplicarCanaisXtream();
+
+  var _t0p = Date.now();      if (xtreamEstaLigado()) aplicarCanaisXtream();
       if (!saimoListaLigada()) {
         if (!xtreamEstaLigado()) preencherCanaisAoVivo([], ["Todos"]);
         return Promise.resolve(true);
@@ -604,7 +614,9 @@ document.addEventListener("DOMContentLoaded", function () {
         aplicarCanaisEmbutidos();
         return false;
       });
-    }
+    
+
+  if (window.SaimoDiagnostico && Date.now() - _t0p > 50) SaimoDiagnostico.logEvento("perf", "recarregarCanais: " + (Date.now() - _t0p) + "ms"); }
     function recarregarAcervoOficial() {
       acervoPronto = null;
       filmesRows = {};
@@ -752,19 +764,67 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.SaimoFicha && SaimoFicha.nomeGenero) return SaimoFicha.nomeGenero(g, isSeries);
       return g;
     }
+    /* Conjunto de títulos com fonte (chaves fold/chaveTitulo) — reconstruído
+       quando SAIMO_FONTES_VER muda. Consulta O(1): a varredura de gêneros era
+       ~200k itemTemPlay por boot (buildVodCategories 7,5s × 3 na TV). */
+    var _setPlay = null;
+    var _setPlayVer = -1;
+    function conjuntoFontes() {
+      var ver = window.SAIMO_FONTES_VER || 0;
+      if (ver === _setPlayVer && _setPlay) return _setPlay;
+      _setPlayVer = ver;
+      var f = Object.create(null);
+      var s = Object.create(null);
+      var k, e, arr, z;
+      for (k in filmeByKey) {
+        if (!Object.prototype.hasOwnProperty.call(filmeByKey, k)) continue;
+        e = filmeByKey[k];
+        if (e && (e.xtreamId || e.letter || (e.sources && e.sources.length))) f[k] = 1;
+      }
+      for (k in serieByKey) {
+        if (!Object.prototype.hasOwnProperty.call(serieByKey, k)) continue;
+        s[k] = 1;
+      }
+      if (window.SaimoXtream && SaimoXtream.mapaFilmes) {
+        var mf = SaimoXtream.mapaFilmes() || {};
+        for (k in mf) if (Object.prototype.hasOwnProperty.call(mf, k)) f[k] = 1;
+      }
+      if (window.SaimoXtream && SaimoXtream.mapaSeries) {
+        var ms = SaimoXtream.mapaSeries() || {};
+        for (k in ms) if (Object.prototype.hasOwnProperty.call(ms, k)) s[k] = 1;
+      }
+      if (window.SaimoListas && SaimoListas.indice && SaimoListas.indice.filmes) {
+        var esconder = window.SaimoAjustes ? SaimoAjustes.get("hideAdult") : true;
+        var ilf = SaimoListas.indice.filmes;
+        for (k in ilf) {
+          if (!Object.prototype.hasOwnProperty.call(ilf, k)) continue;
+          arr = ilf[k] || [];
+          for (z = 0; z < arr.length; z++) {
+            if (!arr[z]) continue;
+            if (!(esconder && arr[z].adult)) {
+              f[k] = 1;
+              break;
+            }
+          }
+        }
+      }
+      _setPlay = { f: f, s: s };
+      return _setPlay;
+    }
     function cardsDaFicha(recs, isSeries, limite) {
       var lista = recs || [];
       if (isSeries) lista = recsSerieSemAnime(lista);
       var kind = isSeries ? "series" : "filmes";
+      var cj = conjuntoFontes()[isSeries ? "s" : "f"];
       var out = [];
-      var i, rec, card;
+      var i, rec, card, titulo, fk;
       for (i = 0; i < lista.length; i++) {
         rec = lista[i];
         if (!rec) continue;
-        if (!itemTemPlay({
-          title: rec.titulo || rec.title,
-          type: isSeries ? "series" : "movie"
-        }, kind)) continue;
+        titulo = rec.titulo || rec.title || "";
+        if (!titulo) continue;
+        fk = fold(titulo);
+        if (!cj[fk] && !cj[fold(stripYear(titulo))]) continue;
         card = window.SaimoFicha && SaimoFicha.cardDeRec ? SaimoFicha.cardDeRec(rec, isSeries) : rec;
         card = cardDoAcervo(card, isSeries);
         if (card) out.push(card);
@@ -945,7 +1005,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return true;
     }
     function empurrarItensBuscaWorker(items, tipoFixo) {
-      if (!searchWorker || !searchWorkerReady || !items || !items.length) return;
+
+  var _t0p = Date.now();      if (!searchWorker || !searchWorkerReady || !items || !items.length) return;
       var lote = [];
       items.forEach(function (it) {
         if (!it || !(it.title || it.name)) return;
@@ -978,7 +1039,9 @@ document.addEventListener("DOMContentLoaded", function () {
         if (i < lote.length) setTimeout(enviar, 0);
       }
       enviar();
-    }
+    
+  if (window.SaimoDiagnostico && Date.now() - _t0p > 50) SaimoDiagnostico.logEvento("perf", "buscaWorker push: " + (Date.now() - _t0p) + "ms");
+ }
     function chaveTituloVod(s) {
       return String(s || "").toLowerCase().replace(/\s*\(\d{4}\)\s*$/, "").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
     }
@@ -1006,17 +1069,37 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return out;
     }
+    var _fxMemo = Object.create(null);
+    var _fxMemoN = 0;
+    var _fxVer = -1;
     function fontesXtreamFilme(title) {
-      if (window.SaimoXtream && SaimoXtream.fontesFilme) return SaimoXtream.fontesFilme(title) || [];
-      var it = xtreamVod.filmes[chaveTituloVod(title)];
-      if (!it || !xtreamVod.perfil || !window.SaimoXtream || !SaimoXtream.gerarStreamUrl) return it && it.sources ? it.sources : [];
-      return [{
-        url: SaimoXtream.gerarStreamUrl(xtreamVod.perfil, it.xtreamId, it.ext || "mp4", "movie"),
-        quality: "Xtream",
-        audio: "DUB",
-        origem: "meu",
-        origemNome: "Xtream"
-      }];
+      /* Memoizado por título: roda no itemTemPlay por registro (passada fria
+         de 12s na TV). Invalidado junto com SAIMO_FONTES_VER (carga do Xtream,
+         ajustes) — resultado depende só de title + versão. */
+      var ver = window.SAIMO_FONTES_VER || 0;
+      if (ver !== _fxVer) {
+        _fxVer = ver;
+        _fxMemo = Object.create(null);
+      }
+      if (_fxMemo[title] !== undefined) return _fxMemo[title];
+      var out = [];
+      if (window.SaimoXtream && SaimoXtream.fontesFilme) out = SaimoXtream.fontesFilme(title) || [];
+      else {
+        var it = xtreamVod.filmes[chaveTituloVod(title)];
+        if (it && xtreamVod.perfil && window.SaimoXtream && SaimoXtream.gerarStreamUrl) {
+          out = [{
+            url: SaimoXtream.gerarStreamUrl(xtreamVod.perfil, it.xtreamId, it.ext || "mp4", "movie"),
+            quality: "Xtream",
+            audio: "DUB",
+            origem: "meu",
+            origemNome: "Xtream"
+          }];
+        } else out = it && it.sources ? it.sources : [];
+      }
+      if (_fxMemoN > 40000) _fxMemo = Object.create(null);
+      _fxMemo[title] = out;
+      _fxMemoN++;
+      return out;
     }
     function carregarScriptXtream() {
       return new Promise(function (resolve) {
@@ -1502,8 +1585,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return acervoPronto;
     }
     function hydrateCatalog() {
-      return _hydrateCatalog.apply(this, arguments);
-    }
+
+  var _t0p = Date.now();      return _hydrateCatalog.apply(this, arguments);
+    
+
+  if (window.SaimoDiagnostico && Date.now() - _t0p > 50) SaimoDiagnostico.logEvento("perf", "hydrateCatalog: " + (Date.now() - _t0p) + "ms"); }
     function _hydrateCatalog() {
       _hydrateCatalog = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
         var mudou, cat, _t, _t2;
@@ -2509,7 +2595,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return out;
     }
     function buildVodCategories(dest) {
-      var nextF = {};
+
+  var _t0p = Date.now();      var nextF = {};
       var nextS = {};
       dest = dest || {};
       Object.keys(dest.filmesRows || {}).forEach(function (n) {
@@ -2522,8 +2609,11 @@ document.addEventListener("DOMContentLoaded", function () {
         var items = itensSerieSemAnime(mapDestRow(dest.seriesRows[n]));
         if (items.length) nextS[n] = items;
       });
+      var _t0genF = Date.now();
       var genF = encherGeneros(false);
+      if (window.SaimoDiagnostico && Date.now() - _t0genF > 50) SaimoDiagnostico.logEvento("perf", "encherGeneros filmes: " + (Date.now() - _t0genF) + "ms");
       var genS = encherGeneros(true);
+      if (window.SaimoDiagnostico && Date.now() - _t0genF > 50) SaimoDiagnostico.logEvento("perf", "encherGeneros series: " + (Date.now() - _t0genF) + "ms acumulado");
       Object.keys(genF).forEach(function (n) {
         if (genF[n].length >= 4 && !nextF[n]) nextF[n] = genF[n].slice(0, 48);
       });
@@ -2534,7 +2624,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!Object.keys(nextS).length) Object.assign(nextS, fallbackDestaqueRows(true));
       filmesCats = nextF;
       seriesCats = nextS;
-    }
+    
+  if (window.SaimoDiagnostico && Date.now() - _t0p > 50) SaimoDiagnostico.logEvento("perf", "buildVodCategories: " + (Date.now() - _t0p) + "ms");
+ }
     function ensureVodCategories() {
       return _ensureVodCategories.apply(this, arguments);
     }
@@ -4747,14 +4839,24 @@ document.addEventListener("DOMContentLoaded", function () {
       return false;
     }
     function recPareceAnime(rec) {
+      /* Memoizado no próprio registro: a mesma rec entra em várias listas de
+         gênero e seria re-testada por build (regex + gêneros por título). */
       if (!rec) return false;
-      if (/anime/i.test(rec.titulo || rec.title || "")) return true;
-      var gens = rec.generos || [];
-      var i;
-      for (i = 0; i < gens.length; i++) {
-        if (nomeGenero(gens[i], true) === "Animação") return true;
+      if (rec._pa !== undefined) return rec._pa;
+      var r = false;
+      if (/anime/i.test(rec.titulo || rec.title || "")) r = true;
+      else {
+        var gens = rec.generos || [];
+        var i;
+        for (i = 0; i < gens.length; i++) {
+          if (nomeGenero(gens[i], true) === "Animação") {
+            r = true;
+            break;
+          }
+        }
       }
-      return false;
+      rec._pa = r;
+      return r;
     }
     function recsSerieSemAnime(recs) {
       return (recs || []).filter(function (rec) {
@@ -5532,7 +5634,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return null;
     }
     function montarPrateleira(kind) {
-      var lado = [];
+
+  var _t0p = Date.now();      var lado = [];
       var pushLista = function pushLista(id, nome, items) {
         if (!items || !items.length) return;
         lado.push({
@@ -5635,7 +5738,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
       return lado;
-    }
+    
+  if (window.SaimoDiagnostico && Date.now() - _t0p > 50) SaimoDiagnostico.logEvento("perf", "montarPrateleira: " + (Date.now() - _t0p) + "ms");
+ }
     function listaTemItens(ent) {
       if (!ent) return false;
       if (ent.tipo === "submenu") return !!(ent.filhos && ent.filhos.length);
@@ -14071,9 +14176,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return recarregarCanaisOficial();
     };
     ligarBarraXtream();
+    var _t0boot = Date.now();
     buildHome().then(function () {
       return hydrateCatalog();
     }).then(function (mudou) {
+      if (window.SaimoDiagnostico && Date.now() - _t0boot > 50) SaimoDiagnostico.logEvento("perf", "boot home+hydrate: " + (Date.now() - _t0boot) + "ms");
       if (!(mudou && !homeFromDest)) return;
       if (menuMexeu) quandoOcioso(function () {
         return buildHome(true);

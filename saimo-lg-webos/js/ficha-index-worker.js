@@ -72,8 +72,8 @@ self.onmessage = function (ev) {
      registros de uma vez (3,3s — medido na TV); e mesmo fatiado, os blocos
      chegavam em rajada e se empilhavam (~4s seguidos). Pausa de 140 ms entre
      blocos dá respiro real para a UI processar teclado/animação. */
-  var CHUNK = 6000;
-  var PAUSA = 140;
+  var CHUNK = 3000;
+  var PAUSA = 100;
   var fila = [];
   var primeiro = true;
   function enfileirar(tipo, arr) {
