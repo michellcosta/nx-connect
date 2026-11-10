@@ -12,6 +12,7 @@ var SaimoCapas = {
   _cache: Object.create(null),
   _cacheOrdem: [],
   _fila: [],
+  _vazias: Object.create(null),
   _ativos: 0,
   _lazyOk: null,
 
@@ -26,15 +27,29 @@ var SaimoCapas = {
     return this._lazyOk;
   },
 
+  _w: "w185",
   ehLeve: function () {
     if (this._leve !== null) return this._leve;
     var d = window.SaimoDiagnostico && SaimoDiagnostico.detectarWebOS && SaimoDiagnostico.detectarWebOS();
     this._leve = !!(d && d.webos);
     if (this._leve) {
-      this.MAX_AUTO = 3;
-      this.JANELA = 2;
-      this.MAX_FILA = 1;
-      this.CACHE_MAX = 40;
+      if ((d.chromium || 0) >= 84) {
+        /* TV moderna (webOS 22+): a fileira visível inteira carrega na
+           montagem, downloads em paralelo e w185 (nítido em 1080p). A janela
+           de foco continua — o que sai da visão é liberado. */
+        this.MAX_AUTO = 6;
+        this.JANELA = 3;
+        this.MAX_FILA = 3;
+        this.CACHE_MAX = 120;
+        this._w = "w342";
+      } else {
+        /* webOS 3-6 (Chromium 38-79): limites apertados de sempre. */
+        this.MAX_AUTO = 3;
+        this.JANELA = 2;
+        this.MAX_FILA = 1;
+        this.CACHE_MAX = 40;
+        this._w = "w92";
+      }
     }
     return this._leve;
   },
@@ -42,7 +57,8 @@ var SaimoCapas = {
   urlLeve: function (url) {
     url = String(url || "");
     if (!url) return "";
-    var tam = this.ehLeve() ? "w92" : "w185";
+    this.ehLeve();
+    var tam = this._w || "w185";
     return url.replace(/\/t\/p\/w\d+\//, "/t/p/" + tam + "/").replace(/w342/g, tam);
   },
 
@@ -166,6 +182,9 @@ var SaimoCapas = {
         if (url) {
           url = _this2.urlLeve(url);
           _this2._guardarCache(job.ck, url);
+        } else if (window.SaimoDiagnostico && !_this2._vazias[job.ck]) {
+          _this2._vazias[job.ck] = 1;
+          SaimoDiagnostico.logEvento("capa_vazia", job.item.title || job.item.name || "?");
         }
         if (url && job.card.isConnected) _this2.aplicar(job.card, job.item, url);
         _this2._bombeiar();

@@ -16,7 +16,7 @@ var SaimoFicha = {
   PLATAFORMAS_LOCAL: "vod/plataformas.txt",
   PLATAFORMAS_URL: "https://filmes-saimo.pages.dev/plataformas.txt",
   TMDB: "https://api.themoviedb.org/3",
-  PROXY: "https://saimo-webos.gabrielsaimo68.workers.dev",
+  PROXY: "https://nx-conexao.pages.dev",
   IMG: "https://image.tmdb.org/t/p/",
   ids: {
     f: Object.create(null),
@@ -368,7 +368,7 @@ var SaimoFicha = {
   pessoaFoto: function pessoaFoto(path) {
     if (!path) return "";
     if (path.indexOf("http") === 0) return path;
-    return this.IMG + "w185" + path;
+    return this.IMG + "w342" + path;
   },
   parseElenco: function parseElenco(txt) {
     var _this2 = this;
@@ -743,7 +743,7 @@ var SaimoFicha = {
             hit = lista.find(function (r) {
               return r.poster_path;
             }) || lista[0];
-            url = hit && hit.poster_path ? _this7.IMG + "w185" + hit.poster_path : "";
+            url = hit && hit.poster_path ? _this7.IMG + "w342" + hit.poster_path : "";
             if (url) {
               _this7.posterCache[ck] = url;
               _this7.gravarCapa(ck, url);
@@ -789,7 +789,25 @@ var SaimoFicha = {
             }
             _context0.p = 2;
             _context0.n = 3;
-            return fetch(lista[i]);
+            /* Timeout 12s: sem isso um fetch pendurado da TMDB ocupa os slots
+               de capa para sempre e a fila inteira para (foto da TV: 4 capas
+               carregadas, 2 eternamente vazias). */
+            return new Promise(function (resolveT) {
+              var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+              var t = setTimeout(function () {
+                if (ctrl) {
+                  try { ctrl.abort(); } catch (eA) {}
+                }
+                resolveT(null);
+              }, 12000);
+              fetch(lista[i], ctrl ? { signal: ctrl.signal } : {}).then(function (rT) {
+                clearTimeout(t);
+                resolveT(rT);
+              }, function () {
+                clearTimeout(t);
+                resolveT(null);
+              });
+            });
           case 3:
             res = _context0.v;
             if (res.ok) {
@@ -1311,7 +1329,7 @@ var SaimoFicha = {
                   id: p.id,
                   nome: p.name || "",
                   papel: p.character || "",
-                  foto: p.profile_path ? _this0.IMG + "w185" + p.profile_path : ""
+                  foto: p.profile_path ? _this0.IMG + "w342" + p.profile_path : ""
                 };
               }),
               deTmdb: true,
