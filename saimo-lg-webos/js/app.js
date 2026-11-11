@@ -9587,6 +9587,36 @@ document.addEventListener("DOMContentLoaded", function () {
       empurrarItensBuscaWorker(seriesParaBusca(), "series");
       empurrarItensBuscaWorker(animesParaBusca(), "anime");
       empurrarItensBuscaWorker(doramasParaBusca(), "dorama");
+      /* O catálogo inteiro (fichas ~51k títulos) entra no worker depois do
+         índice — a busca global enxerga tudo, não só os destaques. O dedup
+         (marcarVistoBusca) evita duplicar o que já foi alimentado. */
+      if (window.SaimoFicha && SaimoFicha.ensureIndex && !SaimoFicha._buscaFeita) {
+        SaimoFicha._buscaFeita = true;
+        SaimoFicha.ensureIndex().then(function () {
+          var fs = [];
+          var ssSerie = [];
+          var ssAnime = [];
+          var lf = SaimoFicha.lista.f || [];
+          var ls = SaimoFicha.lista.s || [];
+          var i, rec;
+          for (i = 0; i < lf.length; i++) {
+            rec = lf[i];
+            if (rec && rec.titulo) fs.push({ title: rec.titulo, year: rec.ano ? String(rec.ano) : "", posterUrl: rec.capa || "" });
+          }
+          for (i = 0; i < ls.length; i++) {
+            rec = ls[i];
+            if (!rec || !rec.titulo) continue;
+            var alvo = recPareceAnime(rec) ? ssAnime : ssSerie;
+            alvo.push({ title: rec.titulo, year: rec.ano ? String(rec.ano) : "", posterUrl: rec.capa || "" });
+          }
+          empurrarItensBuscaWorker(fs, "movie");
+          empurrarItensBuscaWorker(ssSerie, "series");
+          empurrarItensBuscaWorker(ssAnime, "anime");
+          if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "busca worker: fichas alimentadas (" + (fs.length + ssSerie.length + ssAnime.length) + ")");
+        }).catch(function () {
+          SaimoFicha._buscaFeita = false;
+        });
+      }
     }
     function initSearchWorker() {
       if (searchWorker || typeof Worker === "undefined") return;
@@ -9610,6 +9640,7 @@ document.addEventListener("DOMContentLoaded", function () {
           searchWorkerReady = false;
           searchWorkerCatalogLoaded = false;
           searchWorkerVisto = Object.create(null);
+          if (window.SaimoFicha) window.SaimoFicha._buscaFeita = false;
         };
         searchWorkerVisto = Object.create(null);
         searchWorker.postMessage({
@@ -14334,6 +14365,18 @@ document.addEventListener("DOMContentLoaded", function () {
      iniciar antes deixava video=null e matava o init todo (regressão 1.0.22).
      Boot rápido: Ajustes → Abertura da TV: Pular (avisar() já rodou e o
      quandoTerminar dispara na hora). */
+  /* TV antiga (webOS 3-6): aviso de modo básico — o investimento novo mira
+     webOS 22+; aqui o app roda degradado de forma sabida. */
+  var _dOld = window.SaimoDiagnostico && SaimoDiagnostico.detectarWebOS();
+  if (_dOld && _dOld.webos && (_dOld.chromium || 0) < 84) {
+    var av = document.createElement("div");
+    av.style.cssText = "position:fixed;left:16px;bottom:14px;z-index:99999;background:rgba(8,12,24,0.92);color:#cfd8ff;font:14px/1.4 sans-serif;padding:10px 14px;border-radius:8px;border:1px solid #2a3a6e;";
+    av.textContent = "Sua TV é antiga (" + _dOld.sistema + "): o Saimo TV roda em modo básico. Recomendado webOS 22 ou superior.";
+    (document.body || document.documentElement).appendChild(av);
+    setTimeout(function () {
+      if (av.parentNode) av.parentNode.removeChild(av);
+    }, 9000);
+  }
   if (window.SaimoAbertura) SaimoAbertura.quandoTerminar(iniciarApp);else iniciarApp();
 });
 
