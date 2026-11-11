@@ -159,6 +159,7 @@ document.addEventListener("DOMContentLoaded", function () {
       progressFill: document.getElementById("osd-progress-fill"),
       skipBtn: document.getElementById("osd-skip-btn"),
       skipHint: document.getElementById("osd-skip-hint"),
+      shortcuts: document.querySelector(".osd-shortcuts-bar"),
       nextEpCard: document.getElementById("next-ep-card")
     };
     var infoEls = {

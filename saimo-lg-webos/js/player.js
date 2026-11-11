@@ -573,7 +573,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     this.limparEspera();
     this.showLoading(true);
     this.showStatus("Sinal oscilou, reconectando…");
-    this.showOSD(4000);
+    if (this.isOSDVisible()) this.showOSD(4000);else this.mostrarAviso("Sinal oscilou, reconectando…");
     var ch = this.currentChannel;
     var idx = this.currentSourceIndex;
     var gen = this._playGen;
@@ -779,12 +779,42 @@ var SaimoPlayer = /*#__PURE__*/function () {
     if (this.osd.nextEpCard) this.osd.nextEpCard.classList.add("hidden");
     this.showLoading(false);
   };
+  _proto.mostrarAviso = function mostrarAviso(txt) {
+    try {
+      if (!this._avisoEl || !this._avisoEl.parentNode) {
+        this._avisoEl = document.createElement("div");
+        this._avisoEl.style.cssText = "position:fixed;right:16px;bottom:14px;z-index:9999;background:rgba(8,12,24,0.9);color:#cfd8ff;font:14px/1.4 sans-serif;padding:8px 12px;border-radius:8px;border:1px solid #2a3a6e;pointer-events:none;";
+        (document.body || document.documentElement).appendChild(this._avisoEl);
+      }
+      this._avisoEl.textContent = txt;
+      this._avisoEl.style.display = "block";
+      var el = this._avisoEl;
+      clearTimeout(this._avisoTimer);
+      this._avisoTimer = setTimeout(function () {
+        el.style.display = "none";
+      }, 5000);
+    } catch (eAv) {}
+  };
   _proto.showOSD = function showOSD(durationMs) {
     var _this6 = this;
     if (this.vodAtivo()) return;
     if (durationMs == null) durationMs = 4000;
     if (!this.osd.container) return;
     this.osd.container.classList.remove("hidden");
+    /* Dicas de teclas: só na primeira exibição do boot — depois a tela
+       fica limpa (o rodapé voltava a cada troca e poluía o vídeo). */
+    if (this.osd.shortcuts) {
+      var primeira = false;
+      try {
+        primeira = sessionStorage.getItem("saimo_dicas_vistas") !== "1";
+      } catch (eD) {
+        primeira = true;
+      }
+      this.osd.shortcuts.style.display = primeira ? "" : "none";
+      if (primeira && durationMs >= 3000) {
+        try { sessionStorage.setItem("saimo_dicas_vistas", "1"); } catch (eD2) {}
+      }
+    }
     if (this.osdTimer) clearTimeout(this.osdTimer);
     if (durationMs > 0) {
       this.osdTimer = setTimeout(function () {
@@ -819,6 +849,8 @@ var SaimoPlayer = /*#__PURE__*/function () {
       this.osd.origem.style.display = this.isLive && oTxt ? "block" : "none";
     }
     if (this.osd.source) {
+      /* Fonte N de M: só enquanto o canal abre — depois o app troca sozinho. */
+      this.osd.source.style.display = this.isPlaying ? "none" : "";
       var rotFonte = this.isLive && window.SaimoCanaisAoVivo ? SaimoCanaisAoVivo.rotuloFonte(src, ch) + " · " : "";
       this.osd.source.textContent = rotFonte + "Fonte " + (this.currentSourceIndex + 1) + " de " + ch.sources.length;
     }
@@ -975,7 +1007,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
       this._stallRecuperacoes = 0;
       if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("fonte_oscilando", this.getCurrentSourceUrl());
       this.showStatus("Sinal oscilando, trocando de fonte…");
-      this.showOSD(4000);
+      if (this.isOSDVisible()) this.showOSD(4000);else this.mostrarAviso("Sinal oscilando, trocando de fonte…");
       this.tryNextSource("Sinal oscilando");
       return;
     }
