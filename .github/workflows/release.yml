@@ -1,0 +1,54 @@
+# Release automática do IPK: git tag v2.0.3 && git push --tags
+# O Action builda (src/ → js/, Chromium 38), empacota o IPK e publica a
+# Release com o arquivo anexado. A tag tem que ser igual à versão do
+# appinfo.json — o passo "versão" falha o build se divergir.
+name: Release IPK
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build (transpila e gera js/versao.js)
+        run: npm run build
+
+      - name: Versão — tag tem que bater com o appinfo.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          APPINFO=$(node -p "require('./saimo-lg-webos/appinfo.json').version")
+          echo "tag=$TAG appinfo=$APPINFO"
+          if [ "$TAG" != "$APPINFO" ]; then
+            echo "::error::A tag v$TAG difere da versão $APPINFO do appinfo.json — suba os dois juntos."
+            exit 1
+          fi
+
+      - name: Empacotar IPK
+        run: |
+          npx -y -p @webosose/ares-cli ares-package ./saimo-lg-webos -o . \
+            -e worker -e dist -e .git -e "*.py" -e __pycache__ -e "*.md" \
+            -e empacotar.sh -e src -e .gitignore
+          ls -lh com.saimo.tv_*.ipk
+
+      - name: Criar a Release com o IPK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IPK=$(ls com.saimo.tv_*.ipk | head -n1)
+          gh release create "$GITHUB_REF_NAME" "$IPK" \
+            --title "Saimo TV ${GITHUB_REF_NAME#v}" \
+            --generate-notes
