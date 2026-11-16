@@ -5,14 +5,15 @@ function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { 
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 /**
- * Guia 6 h no estilo Assist+: EPG curto por canal (Xtream) + cache local.
- * Sem baixar XMLTV de 16 MB.
+ * Guia 6 h: JSON magro no Pages (nx-conexao), cache local, scrape só se faltar.
+ * Sem baixar XMLTV de 16 MB na TV.
  */
 var SaimoEpg = {
   JANELA: 6 * 3600 * 1000,
   TTL: 6 * 3600 * 1000,
   MAX_PAR: 2,
   LOCAL: "vod/epg.json",
+  NUVEM: "https://nx-conexao.pages.dev/epg.json",
   PROXY: "https://saimo-webos.gabrielsaimo68.workers.dev",
   PROXY_HOSTS: {
     "www.guiadetv.com": 1,
@@ -108,6 +109,9 @@ var SaimoEpg = {
     agro: "agro",
     "agro mais": "agro",
     "canal agro": "agro",
+    nick: "nick",
+    nickelodeon: "nick",
+    nicktoons: "nick-jr",
     amc: "amc",
     "animal planet": "animal-planet",
     "arte 1": "arte-1",
@@ -346,9 +350,9 @@ var SaimoEpg = {
   },
   norm: function norm(s) {
     var k = this.fold(this.decode(s));
-    k = k.replace(/\b(fhd|uhd|4k|8k|full hd|hd|sd|hevc|h265|h264|fhd60|60fps|multi audio|alt|fhdr|ot|rk)\b/g, " ");
+    k = k.replace(/\b(fhd|uhd|4k|8k|full hd|hd|sd|hevc|h265|h264|fhd60|60fps|multi audio|alt|fhdr|ot|rk|backup|option|feed)\b/g, " ");
     k = k.replace(/\s+/g, " ").trim();
-    k = k.replace(/^br\s+/, "");
+    k = k.replace(/^(tv|rede|br)\s+/, "");
     k = k.replace(/\s+lista\s+\d+$/, "");
     var aliases = {
       "a e": "ae",
@@ -373,7 +377,13 @@ var SaimoEpg = {
       "music box brasil": "music box brazil",
       "hbo mais": "hbo plus",
       "fashion tv": "fashiontv",
-      "ge tv": "ge tv"
+      "ge tv": "ge tv",
+      nickelodeon: "nick",
+      nicktoons: "nick jr",
+      "agro mais": "agromais",
+      "canal agro": "agromais",
+      "record sp": "recordtv sp",
+      "record rj": "record tv rj"
     };
     return aliases[k] || k;
   },
@@ -408,6 +418,7 @@ var SaimoEpg = {
   },
   slug: function slug(name) {
     var n = this.norm(name);
+    n = n.replace(/^(tv|canal|rede|br)\s+/, "");
     if (this.slugs[n]) return this.slugs[n];
     if (this.slugs[this.fold(name)]) return this.slugs[this.fold(name)];
     var noNum = n.replace(/\s+\d{1,2}$/, "");
@@ -464,13 +475,31 @@ var SaimoEpg = {
         return p && p.desc;
       }).length;
     };
-    var escolhida = score(lista) >= score(prev) ? lista : prev;
+    /* Escolhe pela grade mais NOVA (maior stop), não pela mais comprida:
+       a local vencida ganhava do score e a nuvem fresca era descartada
+       inteira — ficava EPG vencido na maioria dos canais. */
+    var fim = function fim(list) {
+      var m = 0;
+      for (var i = 0; i < (list || []).length; i++) {
+        var f = list[i] && list[i].stop || 0;
+        if (f > m) m = f;
+      }
+      return m;
+    };
+    var nova = fim(lista);
+    var velha = fim(prev);
+    var escolhida = nova > velha || nova === velha && score(lista) >= score(prev) ? lista : prev;
     var outra = escolhida === lista ? prev : lista;
     this.byName[key] = this.mesclar(outra, escolhida);
     var s = this.slug(nome);
     if (s) {
       var prevS = this.byName["@" + s] || [];
       this.byName["@" + s] = score(this.byName[key]) >= score(prevS) ? this.byName[key] : prevS;
+    }
+    var compact = key.replace(/ /g, "");
+    if (compact) {
+      var prevC = this.byName["#" + compact] || [];
+      this.byName["#" + compact] = score(this.byName[key]) >= score(prevC) ? this.byName[key] : prevC;
     }
     this.gravarCache();
   },
@@ -492,7 +521,19 @@ var SaimoEpg = {
         return p && p.desc;
       }).length;
     };
-    this.byName[key] = score(lista) >= score(prev) ? lista : prev;
+    /* Mesma regra do guardar: a grade mais nova vence — sem isso o cache
+       vencido do localStorage cobria os dados frescos da nuvem no boot. */
+    var fim = function fim(list) {
+      var m = 0;
+      for (var i = 0; i < (list || []).length; i++) {
+        var f = list[i] && list[i].stop || 0;
+        if (f > m) m = f;
+      }
+      return m;
+    };
+    var nova = fim(lista);
+    var velha = fim(prev);
+    this.byName[key] = nova > velha || nova === velha && score(lista) >= score(prev) ? lista : prev;
   },
   gravarCache: function gravarCache() {
     var _this2 = this;
@@ -502,6 +543,7 @@ var SaimoEpg = {
       try {
         var slim = {};
         Object.keys(_this2.byName).forEach(function (k) {
+          if (!k || k.charAt(0) === "@" || k.charAt(0) === "#") return;
           slim[k] = (_this2.byName[k] || []).map(function (p) {
             var item = {
               title: p.title,
@@ -1014,81 +1056,69 @@ var SaimoEpg = {
     });
     if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "epg aplicar: " + n + " canais · " + (Date.now() - t0) + "ms");
   },
+  lerArquivoJson: function lerArquivoJson(url, ms) {
+    var p;
+    if (window.SaimoAPI && SaimoAPI.fetchTextXhr && String(url).indexOf("http") !== 0) {
+      p = SaimoAPI.fetchTextXhr(url);
+    } else {
+      p = this.buscarComLimite(url, ms || 8000);
+    }
+    return Promise.resolve(p).then(function (txt) {
+      if (!txt) return null;
+      if (typeof txt === "object") return txt;
+      try {
+        return JSON.parse(txt);
+      } catch (e) {
+        return null;
+      }
+    }).catch(function () {
+      return null;
+    });
+  },
   ensure: function ensure() {
-    var _this9 = this;
-    return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-      return _regenerator().w(function (_context6) {
-        while (1) switch (_context6.n) {
-          case 0:
-            if (!_this9.loaded) {
-              _context6.n = 1;
-              break;
-            }
-            return _context6.a(2);
-          case 1:
-            if (!_this9.loading) {
-              _context6.n = 2;
-              break;
-            }
-            return _context6.a(2, _this9.loading);
-          case 2:
-            _this9.loading = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
-              var res, _t3, _t4;
-              return _regenerator().w(function (_context5) {
-                while (1) switch (_context5.p = _context5.n) {
-                  case 0:
-                    _context5.p = 0;
-                    _context5.n = 1;
-                    /* fetch() em file:// é bloqueado no Chrome 94 (webOS 23); XHR passa.
-                       Adaptador devolve "resposta" com ok/text/json p/ o gerador abaixo. */
-                    return (window.SaimoAPI && SaimoAPI.fetchTextXhr ? SaimoAPI.fetchTextXhr(_this9.LOCAL).then(function (txt) {
-                      return {
-                        ok: !!txt,
-                        status: txt ? 200 : 0,
-                        text: function () { return Promise.resolve(txt || ""); },
-                        json: function () {
-                          try { return Promise.resolve(JSON.parse(txt || "{}")); }
-                          catch (eJ) { return Promise.reject(eJ); }
-                        }
-                      };
-                    }) : fetch(_this9.LOCAL));
-                  case 1:
-                    res = _context5.v;
-                    if (!res.ok) {
-                      _context5.n = 3;
-                      break;
-                    }
-                    _t3 = _this9;
-                    _context5.n = 2;
-                    return res.json();
-                  case 2:
-                    _t3.aplicarJson.call(_t3, _context5.v);
-                  case 3:
-                    _context5.n = 5;
-                    break;
-                  case 4:
-                    _context5.p = 4;
-                    _t4 = _context5.v;
-                  case 5:
-                    _this9.lerCache();
-                    _this9.loaded = true;
-                  case 6:
-                    return _context5.a(2);
-                }
-              }, _callee5, null, [[0, 4]]);
-            }))();
-            return _context6.a(2, _this9.loading);
-        }
-      }, _callee6);
-    }))();
+    var self = this;
+    if (this.loaded) return Promise.resolve();
+    if (this.loading) return this.loading;
+    this.loading = this.lerArquivoJson(this.NUVEM, 15000).then(function (remoto) {
+      if (remoto && remoto.channels && Object.keys(remoto.channels).length) {
+        self.aplicarJson(remoto);
+        return true;
+      }
+      return false;
+    }).catch(function () {
+      return false;
+    }).then(function (ok) {
+      if (ok) return null;
+      return self.lerArquivoJson(self.PROXY + "/epg");
+    }).then(function (worker) {
+      if (worker && worker.channels && Object.keys(worker.channels).length) self.aplicarJson(worker);
+    }).catch(function () {}).then(function () {
+      return self.lerArquivoJson(self.LOCAL);
+    }).then(function (local) {
+      if (local && local.channels && Object.keys(local.channels).length) self.aplicarJson(local);
+    }).catch(function () {}).then(function () {
+      self.lerCache();
+      self.loaded = true;
+    });
+    return this.loading;
   },
   listaLocal: function listaLocal(nome) {
     var n = this.norm(nome);
     var list = this.filtrar(this.byName[n] || []);
     if (list.length) return list;
+    var n2 = n.replace(/^(tv|canal|rede|br)\s+/, "");
+    if (n2 && n2 !== n) {
+      list = this.filtrar(this.byName[n2] || []);
+      if (list.length) return list;
+    }
     var s = this.slug(nome);
     if (s) {
       list = this.filtrar(this.byName["@" + s] || []);
+      if (list.length) return list;
+    }
+    var compact = (n2 || n).replace(/ /g, "");
+    if (compact) {
+      list = this.filtrar(this.byName["#" + compact] || []);
       if (list.length) return list;
     }
     return [];
@@ -1267,11 +1297,11 @@ var SaimoEpg = {
     if (this.pulaGrade(nome)) return Promise.resolve([]);
     var key = this.norm(nome);
     var hit = this.listaLocal(nome);
-    if (this.visto[key] || hit.length && this.temSinopse(hit) && !this.precisaPagina(hit)) return Promise.resolve(hit);
+    if (this.visto[key] || hit.length) return Promise.resolve(hit);
     return new Promise(function (resolve) {
       _this12.ensure().then(function () {
         var local = _this12.listaLocal(nome);
-        if (_this12.visto[key] || local.length && _this12.temSinopse(local) && !_this12.precisaPagina(local)) {
+        if (_this12.visto[key] || local.length) {
           resolve(local);
           return;
         }

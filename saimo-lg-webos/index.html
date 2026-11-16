@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
   <title>Saimo TV</title>
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" href="css/style.css?v=xt147">
+  <link rel="stylesheet" href="css/style.css?v=xt157">
 </head>
 <body>
 
@@ -24,7 +24,7 @@
       <button type="button" class="home-side-item" data-section="buscar">Buscar</button>
       <button type="button" class="home-side-item" data-section="home">Início</button>
       <button type="button" class="home-side-item" data-section="aovivo">Ao vivo</button>
-      <button type="button" class="home-side-item" data-section="eventos">Eventos</button>
+      <button type="button" class="home-side-item" data-section="jogos">Jogos</button>
       <button type="button" class="home-side-item" data-section="tabela">Tabelas</button>
       <button type="button" class="home-side-item" data-section="ondemand">On Demand</button>
       <button type="button" class="home-side-item" data-section="favoritos">Favoritos</button>
@@ -123,6 +123,7 @@
       </div>
       <div class="header-status">
         <button id="btn-catalog-guide" class="search-btn hidden">Guia</button>
+        <button id="btn-catalog-vista" class="search-btn hidden">Lista</button>
         <button id="btn-catalog-search" class="search-btn">Buscar</button>
         <div id="channel-counter" class="channel-counter">Carregando...</div>
         <div id="catalog-clock" class="clock">--:--</div>
@@ -186,7 +187,7 @@
 
   <div id="jogos-hoje-screen" class="info-panel-overlay">
     <div class="jogos-hoje-card">
-      <h1>Jogos de hoje</h1>
+      <h1>Jogos</h1>
       <div id="jogos-hoje-dias" class="jogos-hoje-dias"></div>
       <div id="jogos-hoje-list" class="settings-list"></div>
       <div class="jogos-hoje-dica">OK abre a ficha do jogo (Assistir está dentro dela) · chip Tabelas no topo abre as classificações · amarelo ou i também abrem a ficha</div>
@@ -736,25 +737,36 @@
     </div>
   </div>
 
+  <div id="sair-app" class="sair-app" hidden>
+    <div class="sair-app-box">
+      <div class="sair-app-titulo">Deseja sair do Saimo TV?</div>
+      <div class="sair-app-btns">
+        <button type="button" id="sair-app-nao" class="sair-app-btn">Não</button>
+        <button type="button" id="sair-app-sim" class="sair-app-btn">Sim</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/versao.js"></script>
   <script src="js/polyfills.js?v=xt115"></script>
-  <script src="js/listas.js?v=xt138"></script>
+  <script src="js/listas.js?v=xt139"></script>
   <script src="js/hls.min.js"></script>
   <script src="js/vod_bases.js?v=xt126"></script>
   <script src="js/channels_data.js"></script>
-  <script src="js/ajustes.js?v=xt133"></script>
+  <script src="js/ajustes.js?v=xt135"></script>
+  <script src="js/adultos.js?v=xt1"></script>
   <script src="js/abertura.js?v=xt129"></script>
   <script src="js/fonte-preferida.js?v=xt56"></script>
   <script src="js/listas-oficiais.js"></script>
   <script src="js/contexto.js"></script>
   <script src="js/fontes.js?v=xt60"></script>
   <script src="js/api.js?v=xt124"></script>
-  <script src="js/extra.js?v=xt134"></script>
-  <script src="js/epg.js?v=xt121"></script>
-  <script src="js/ficha.js?v=xt154"></script>
-  <script src="js/generos-ondemand.js?v=xt55"></script>
+  <script src="js/extra.js?v=xt135"></script>
+  <script src="js/epg.js?v=xt126"></script>
+  <script src="js/ficha.js?v=xt155"></script>
+  <script src="js/generos-ondemand.js?v=xt56"></script>
   <script src="js/canais-aovivo.js?v=xt61"></script>
-  <script src="js/capas.js?v=xt149"></script>
+  <script src="js/capas.js?v=xt151"></script>
   <script src="js/logos-tv.js?v=xt54"></script>
   <script src="js/logos.js?v=xt80"></script>
   <script src="js/legendas.js?v=xt55"></script>
@@ -766,8 +778,8 @@
   <script src="js/multiview.js?v=xt48"></script>
   <script src="js/catchup.js"></script>
   <script src="js/player-vod.js?v=xt47"></script>
-  <script src="js/player.js?v=xt155"></script>
-  <script src="js/jogos-espn.js?v=xt134"></script>
-  <script src="js/app.js?v=xt156"></script>
+  <script src="js/player.js?v=xt157"></script>
+  <script src="js/jogos-espn.js?v=xt135"></script>
+  <script src="js/app.js?v=xt174"></script>
 </body>
 </html>

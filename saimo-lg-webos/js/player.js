@@ -57,7 +57,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
       _this.showLoading(false);
       _this.isPlaying = true;
       _this.updateOSD();
-      _this.showOSD(4000);
+      _this.showOSD(2500, _this.isLive ? "zap" : "info");
       if (_this.callbacks.onPlaying) _this.callbacks.onPlaying(_this.currentChannel, _this.currentSourceIndex);
       _this.armarWatchdogAoVivo();
       var hostOk = _this.hostDaFonte(_this.currentChannel.sources[_this.currentSourceIndex]);
@@ -133,7 +133,9 @@ var SaimoPlayer = /*#__PURE__*/function () {
       fragLoadingMaxRetry: segura ? 4 : live ? 1 : 2
     };
     var perfilBuffer = window.SaimoAjustes && SaimoAjustes.get("bufferProfile") || "auto";
-    if (perfilBuffer === "economico" || perfilBuffer === "auto" && window.SaimoDiagnostico && SaimoDiagnostico.detectarWebOS().chromium <= 53) {
+    /* "auto" é igual para todas as TVs desde o fim do modo leve — só vira
+       econômico se o usuário escolher à mão nos Ajustes. */
+    if (perfilBuffer === "economico") {
       cfg.maxBufferLength = live ? 4 : 4;
       cfg.maxMaxBufferLength = live ? 6 : 8;
       cfg.maxBufferSize = (live ? 4 : 6) * 1024 * 1024;
@@ -369,7 +371,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     this.showLoading(true);
     this.showStatus(mesmaFonte ? "Reconectando…" : nativo ? "Fonte " + (idx + 1) + " · TS…" : viaProxy ? "Fonte " + (sourceIndex + 1) + " · via proxy…" : channel.isLive ? "Abrindo canal…" : "Carregando…");
     this.updateOSD();
-    this.showOSD(4000);
+    this.showOSD(4000, this.isLive ? "zap" : "info");
     this.limparEspera();
     this.armarEspera();
     if (this.callbacks.onPlayStart) this.callbacks.onPlayStart(channel, idx);
@@ -795,14 +797,17 @@ var SaimoPlayer = /*#__PURE__*/function () {
       }, 5000);
     } catch (eAv) {}
   };
-  _proto.showOSD = function showOSD(durationMs) {
+  _proto.showOSD = function showOSD(durationMs, modo) {
     var _this6 = this;
     if (this.vodAtivo()) return;
     if (durationMs == null) durationMs = 4000;
     if (!this.osd.container) return;
+    if (!modo) modo = this.isLive ? "zap" : "info";
+    this._osdModo = modo;
     this.osd.container.classList.remove("hidden");
-    /* Dicas de teclas: só na primeira exibição do boot — depois a tela
-       fica limpa (o rodapé voltava a cada troca e poluía o vídeo). */
+    this.osd.container.classList.toggle("osd-zap", this.isLive && modo === "zap");
+    this.osd.container.classList.toggle("osd-info", modo === "info");
+    /* Dicas de teclas: só na primeira exibição do boot, e só na camada info. */
     if (this.osd.shortcuts) {
       var primeira = false;
       try {
@@ -810,8 +815,8 @@ var SaimoPlayer = /*#__PURE__*/function () {
       } catch (eD) {
         primeira = true;
       }
-      this.osd.shortcuts.style.display = primeira ? "" : "none";
-      if (primeira && durationMs >= 3000) {
+      this.osd.shortcuts.style.display = modo === "info" && primeira ? "" : "none";
+      if (primeira && modo === "info" && durationMs >= 3000) {
         try { sessionStorage.setItem("saimo_dicas_vistas", "1"); } catch (eD2) {}
       }
     }

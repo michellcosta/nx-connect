@@ -192,6 +192,9 @@ var SaimoFicha = {
   _indexWorker: null,
   _indexWorkerFalhou: false,
   _indexReqId: 0,
+  _indexFila: [],
+  _indexAplicando: false,
+  _indexFimCb: null,
   /* Indexação em Web Worker: o parse de ~95 mil títulos custava 11,2s de
      main thread na TV (foco engarrafado). O worker parseia em paralelo e
      devolve as estruturas via structured clone (referências preservadas).
@@ -212,7 +215,7 @@ var SaimoFicha = {
     return new Promise(function (resolve, reject) {
       try {
         if (!self._indexWorker) {
-          self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt137");
+          self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt138");
         }
         var w = self._indexWorker;
         var reqId = ++self._indexReqId;
@@ -233,7 +236,8 @@ var SaimoFicha = {
           if (d.cmd === "indice-chunk" && d.reqId === reqId) {
             rearmar();
             if (d.inicio) self.aplicarInicioIndice(d);
-            self.aplicarChunkIndice(d);
+            self._indexFila.push(d);
+            self._bombaIndice();
             return;
           }
           if (d.cmd === "indexado-fim" && d.reqId === reqId) {
@@ -241,8 +245,12 @@ var SaimoFicha = {
             if (vigilante) clearTimeout(vigilante);
             self._genCache.f = null;
             self._genCache.s = null;
-            if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "indice worker: " + (d.ms || 0) + "ms parse · " + (d.total || 0) + " titulos · entregue em blocos");
-            resolve(d.ms || 0);
+            var fechar = function fechar() {
+              if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "indice worker: " + (d.ms || 0) + "ms parse · " + (d.total || 0) + " titulos · entregue em blocos");
+              resolve(d.ms || 0);
+            };
+            if (self._indexFila.length || self._indexAplicando) self._indexFimCb = fechar;
+            else fechar();
           }
         };
         w.addEventListener("message", handler);
@@ -270,6 +278,8 @@ var SaimoFicha = {
     this.byTmdb.s = Object.create(null);
     this.lista.f = [];
     this.lista.s = [];
+    this._indexFila = [];
+    this._indexAplicando = false;
   },
   aplicarChunkIndice: function aplicarChunkIndice(d) {
     var ids = this.ids[d.tipo];
@@ -300,10 +310,28 @@ var SaimoFicha = {
         generos: it.g || []
       };
       meta[it.f] = rec;
-      meta[this.fold(it.sa)] = rec;
       lista.push(rec);
       if (it.id) byTmdb[it.id] = rec;
     }
+  },
+  _bombaIndice: function _bombaIndice() {
+    if (this._indexAplicando) return;
+    var d = this._indexFila.shift();
+    if (!d) {
+      if (this._indexFimCb) {
+        var cb = this._indexFimCb;
+        this._indexFimCb = null;
+        cb();
+      }
+      return;
+    }
+    this._indexAplicando = true;
+    this.aplicarChunkIndice(d);
+    this._indexAplicando = false;
+    var self = this;
+    setTimeout(function () {
+      self._bombaIndice();
+    }, 16);
   },
   indexarIdsMain: function indexarIdsMain(text) {
     var _this = this;
@@ -1058,10 +1086,8 @@ var SaimoFicha = {
         map[nome].push(rec);
       }
     }
-    var self = this;
-    Object.keys(map).forEach(function (n) {
-      self.ordenarRecs(map[n]);
-    });
+    /* Não ordena todos os gêneros aqui: na TV isso travava ~11s. Cada
+       gênero só é ordenado na primeira listarPorGenero daquele nome. */
     this._genCache[k] = map;
     return map;
   },
@@ -1167,12 +1193,24 @@ var SaimoFicha = {
   listarPorGenero: function listarPorGenero(isSeries, genero, limite, soComCapa) {
     var alvo = this.nomeGenero(genero, isSeries);
     var lista = this.indiceGeneros(isSeries)[alvo] || [];
-    if (!soComCapa && !limite) return lista;
+    if (!soComCapa && !limite) {
+      if (!lista._ord) {
+        this.ordenarRecs(lista);
+        lista._ord = 1;
+      }
+      return lista;
+    }
     var out = [];
     for (var i = 0; i < lista.length; i++) {
       if (soComCapa && !(lista[i] && lista[i].capa)) continue;
       out.push(lista[i]);
-      if (limite && out.length >= limite) break;
+      if (limite && lista._ord && out.length >= limite) break;
+    }
+    if (limite && !lista._ord) {
+      out.sort(function (a, b) {
+        return (b.ano || 0) - (a.ano || 0);
+      });
+      if (out.length > limite) out = out.slice(0, limite);
     }
     return out;
   },

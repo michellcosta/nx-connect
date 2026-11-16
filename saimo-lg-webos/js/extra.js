@@ -448,7 +448,7 @@ window.SaimoExtra = SaimoExtra;
  * discreto na home. Só isso — a TV não baixa nem recarrega nada sozinha.
  */
 var SaimoVersao = {
-  ATUAL: (typeof window !== "undefined" && window.SAIMO_VERSAO) || "1.0.5",
+  ATUAL: (typeof window !== "undefined" && window.SAIMO_VERSAO) || "2.0.0",
   ENDERECO: "https://canais-saimo.pages.dev/versao.json",
   CHAVE: "saimo_versao_remota",
   CHAVE_VISTO: "saimo_versao_visto_em",

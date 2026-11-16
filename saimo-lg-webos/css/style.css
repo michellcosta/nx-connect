@@ -540,8 +540,113 @@ body {
 .channels-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  /* Todas as linhas do mesmo tamanho — card com EPG (programa + barra) e
+     card sem EPG ocupam a mesma altura. */
+  grid-auto-rows: 1fr;
   gap: 14px;
   padding-bottom: 30px;
+}
+
+.channel-origem-txt {
+  display: none;
+}
+
+.channels-grid.modo-lista {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live {
+  flex-direction: row;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 28px;
+  min-height: 124px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .origem-badge {
+  display: none;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .star-badge {
+  position: static;
+  order: 3;
+  flex-shrink: 0;
+  top: auto;
+  right: auto;
+  font-size: 40px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .card-media-wrap {
+  order: 1;
+  width: 168px;
+  height: 108px;
+  flex: 0 0 168px;
+  padding: 10px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .channel-logo,
+.channels-grid.modo-lista .channel-card.is-live .channel-logo-placeholder {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .channel-logo-placeholder {
+  font-size: 32px;
+  border-radius: 10px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .channel-info {
+  order: 2;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  text-align: left;
+  padding: 0;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .channel-name {
+  font-size: 34px;
+  margin-bottom: 0;
+}
+
+.channels-grid.modo-lista .channel-origem-txt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 8px;
+}
+
+.origem-pill {
+  display: inline-block;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  padding: 5px 12px;
+  border-radius: 10px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .now-title {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .next-title {
+  font-size: 20px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .now-bar {
+  margin-top: 8px;
+  height: 5px;
+}
+
+.channels-grid.modo-lista .channel-card.is-live .source-badge {
+  display: none;
 }
 
 #screen-catalog.buscando .categories-bar {
@@ -628,10 +733,10 @@ body {
   top: 8px;
   left: 8px;
   z-index: 2;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 8px;
   line-height: 1.1;
 }
@@ -1009,6 +1114,27 @@ body {
 
 .player-osd.hidden {
   display: none;
+}
+
+/* Ao vivo: faixa curta de zapping (troca de canal). Info completa é outra camada. */
+.player-osd.osd-zap {
+  justify-content: flex-start;
+  padding: 28px 48px 0;
+  height: auto;
+  bottom: auto;
+  max-height: 280px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%);
+}
+.player-osd.osd-zap .osd-bottom,
+.player-osd.osd-zap .osd-desc,
+.player-osd.osd-zap .osd-shortcuts-bar,
+.player-osd.osd-zap #osd-source,
+.player-osd.osd-zap #osd-origem,
+.player-osd.osd-zap #osd-quality {
+  display: none !important;
+}
+.player-osd.osd-zap .osd-channel-title {
+  font-size: 42px;
 }
 
 .zap-faixa {
@@ -1715,6 +1841,18 @@ body {
 .tabela-row.focused {
   border-color: #fff;
   background: #1c2740;
+}
+
+.tabela-grupo {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  padding: 18px 8px 6px;
+  letter-spacing: 0.02em;
+}
+
+.tabela-grupo:first-child {
+  padding-top: 0;
 }
 
 .tabela-head {
@@ -5760,4 +5898,124 @@ body {
 }
 .aovivo-busca.recolhido .aovivo-busca-kb {
   display: none;
+}
+
+/* webOS 22 = Chrome 87: tem gap e inset, não tem aspect-ratio (Chrome 88). */
+@supports not (aspect-ratio: 1 / 1) {
+  .card-media-wrap {
+    height: 0;
+    padding-top: 150%;
+    position: relative;
+  }
+  .card-media-wrap > * {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .channel-card.is-live .card-media-wrap {
+    height: 132px;
+    padding-top: 0;
+  }
+  .channel-card.is-live .card-media-wrap > * {
+    position: static;
+    height: auto;
+  }
+  .channels-grid.modo-lista .channel-card.is-live .card-media-wrap {
+    height: 108px;
+    width: 168px;
+    padding-top: 0;
+  }
+  .channels-grid.modo-lista .channel-card.is-live .card-media-wrap > * {
+    position: static;
+    width: 100%;
+    height: 100%;
+  }
+  .info-panel-poster,
+  .info-panel-poster-placeholder {
+    height: 330px;
+  }
+  .home-mini:not(.wide):not(.jogo):not(.live) img,
+  .mini-ph {
+    height: 540px;
+  }
+  .home-mini.wide img,
+  .home-mini.wide .mini-ph {
+    height: 292px;
+  }
+  .ep-thumb {
+    height: 0;
+    padding-top: 56.25%;
+    object-fit: cover;
+  }
+  .od-poster-media {
+    height: 0;
+    padding-top: 150%;
+    position: relative;
+  }
+  .od-poster-media img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.sair-app {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 90;
+  background: rgba(4, 8, 16, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sair-app[hidden] {
+  display: none !important;
+}
+
+.sair-app-box {
+  background: #121824;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  padding: 52px 64px 44px;
+  min-width: 760px;
+  text-align: center;
+}
+
+.sair-app-titulo {
+  font-size: 38px;
+  font-weight: 800;
+  margin-bottom: 40px;
+  letter-spacing: -0.02em;
+}
+
+.sair-app-btns {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+}
+
+.sair-app-btn {
+  min-width: 240px;
+  height: 76px;
+  border-radius: 18px;
+  border: 3px solid transparent;
+  background: #1e293b;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sair-app-btn.focused {
+  border-color: #fff;
+  background: #fff;
+  color: #0a0d14;
 }

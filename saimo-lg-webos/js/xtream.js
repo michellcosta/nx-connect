@@ -602,13 +602,26 @@ var SaimoXtream = (function () {
     return _ajLigado;
   }
 
+  var _chaveTituloCache = Object.create(null);
+  var _chaveTituloN = 0;
   function chaveTitulo(s) {
-    return String(s || '')
+    /* Memoizado: roda por título no itemTemPlay (passada fria de 12s medida
+       na TV). Função pura — cache sem invalidação. */
+    s = String(s || '');
+    if (_chaveTituloCache[s] !== undefined) return _chaveTituloCache[s];
+    var r = s
       .toLowerCase()
       .replace(/\s*\(\d{4}\)\s*$/, '')
       .replace(/[^a-z0-9]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    if (_chaveTituloN > 40000) {
+      _chaveTituloCache = Object.create(null);
+      _chaveTituloN = 0;
+    }
+    _chaveTituloCache[s] = r;
+    _chaveTituloN++;
+    return r;
   }
 
   function letraDe(title) {

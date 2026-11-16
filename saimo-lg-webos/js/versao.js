@@ -1,2 +1,2 @@
-window.SAIMO_VERSAO = "1.0.51";
+window.SAIMO_VERSAO = "2.0.2";
 window._saimoT0 = Date.now();

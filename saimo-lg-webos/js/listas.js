@@ -56,6 +56,13 @@ var SaimoListas = {
     return t || String(s || "").trim();
   },
   adulto: function adulto(nome, grupo) {
+    if (window.SaimoAdultos && SaimoAdultos.eh) {
+      return SaimoAdultos.eh({
+        name: nome,
+        title: nome,
+        category: grupo
+      });
+    }
     var t = this.fold(nome + " " + grupo);
     if (/adult swim/.test(t)) return false;
     if (/\badult\b|\bxxx\b|\bporn|\+18|erotic/.test(t)) return true;
@@ -655,7 +662,20 @@ var SaimoListas = {
     this.indiceSuja = false;
     window.SAIMO_FONTES_VER = (window.SAIMO_FONTES_VER || 0) + 1;
   },
+  _ffCache: null,
+  _ffVer: -1,
+  _ffN: 0,
   fontesFilme: function fontesFilme(titulo) {
+    /* Memoizado por título: roda no itemTemPlay por registro. Invalidado por
+       SAIMO_FONTES_VER (garantirIndice bumpa ao reconstruir o índice; ajustes
+       bumpa ao trocar esconderAdulto). */
+    var ver = window.SAIMO_FONTES_VER || 0;
+    if (ver !== this._ffVer || this._ffCache === null) {
+      this._ffVer = ver;
+      this._ffCache = Object.create(null);
+      this._ffN = 0;
+    }
+    if (this._ffCache[titulo] !== undefined) return this._ffCache[titulo];
     var self = this;
     this.garantirIndice();
     var k = self.chave(self.semAno(titulo));
@@ -672,6 +692,12 @@ var SaimoListas = {
         agent: it.agent
       }));
     });
+    if (this._ffN > 30000) {
+      this._ffCache = Object.create(null);
+      this._ffN = 0;
+    }
+    this._ffCache[titulo] = out;
+    this._ffN++;
     return out;
   },
   juntarEpisodios: function juntarEpisodios(item) {

@@ -305,6 +305,25 @@ var SaimoDiagnostico = (function () {
   vigiarMemoria();
   ligarDiagRemoto();
 
+  /* Detector de tarefas longas: TODO congelamento >= 200ms da main thread
+     vira linha no log com a duração exata — identifica o culpado mesmo
+     quando a marca de fase não cobre o trecho. */
+  try {
+    if (typeof PerformanceObserver === "function") {
+      var _obsLongTask = new PerformanceObserver(function (lista) {
+        var entradas = lista.getEntries() || [];
+        for (var i = 0; i < entradas.length; i++) {
+          var dur = Math.round(entradas[i].duration);
+          if (dur >= 200) {
+            var base = window._saimoT0 || 0;
+            logEvento("trava", dur + "ms de tarefa longa" + (base ? " (t+" + Math.round((Date.now() - base) / 1000) + "s)" : ""));
+          }
+        }
+      });
+      _obsLongTask.observe({ entryTypes: ["longtask"] });
+    }
+  } catch (eObs) {}
+
   /* Erros JS não capturados vão para o log remoto — a 1.0.22 matou o init
      com um TypeError silencioso e só descobrimos por dedução. Nunca mais. */
   try {

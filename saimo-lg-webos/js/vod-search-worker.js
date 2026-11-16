@@ -8,13 +8,12 @@
 (function () {
   'use strict';
 
-  var index = []; // [{ id, type, title, lc, year, posterUrl, category, original }]
+  var index = [];
   var ready = false;
 
   function fold(s) {
     if (!s) return '';
     var str = String(s).toLowerCase();
-    // Normalização sem acentos compatível com ES5
     var mapa = {
       'á':'a','à':'a','ã':'a','â':'a','ä':'a',
       'é':'e','è':'e','ê':'e','ë':'e',
@@ -31,6 +30,10 @@
     return out.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  function semArtigo(lc) {
+    return String(lc || '').replace(/^(o|a|os|as|um|uma|uns|umas|the|el|la|los|las|le|les|l)\s+/, '');
+  }
+
   function addItems(items, defaultType) {
     if (!items || !items.length) return;
     for (var i = 0; i < items.length; i++) {
@@ -45,23 +48,29 @@
         type: type,
         title: title,
         lc: lc,
-        year: it.year || '',
+        core: semArtigo(lc),
+        year: parseInt(it.year, 10) || 0,
         posterUrl: it.posterUrl || it.logo || it.stream_icon || it.cover || '',
         category: it.category || '',
+        adult: !!(it.adult === true || it.adult === 1 || it.adult === '1'),
+        ficha: !!(it.ficha === true || it.ficha === 1 || it.ficha === '1' || it.tmdb),
         original: it
       });
     }
   }
 
-  function scoreItem(lc, query) {
-    if (lc === query) return 1;
-    if (lc.indexOf(query) === 0) return 2;
-    var words = lc.split(' ');
-    for (var w = 0; w < words.length; w++) {
-      if (words[w].indexOf(query) === 0) return 3;
+  function scoreItem(it, query) {
+    var lc = it.lc;
+    var core = it.core || semArtigo(lc);
+    if (lc === query || core === query) return 1;
+    if (core.indexOf(query) === 0) return 2;
+    if (lc.indexOf(query) === 0) return 3;
+    var words = core.split(' ');
+    var w;
+    for (w = 0; w < words.length; w++) {
+      if (words[w].indexOf(query) === 0) return 4;
     }
-    var idx = lc.indexOf(query);
-    if (idx !== -1) return 4;
+    if (lc.indexOf(query) !== -1) return 5;
     return -1;
   }
 
@@ -74,7 +83,8 @@
     if (scope === 'doramas') return type === 'dorama';
     return true;
   }
-  function search(query, limit, reqId, scope) {
+
+  function search(query, limit, reqId, scope, hideAdult) {
     var q = fold(query);
     var lim = limit || 40;
     scope = scope || 'tudo';
@@ -91,10 +101,18 @@
     for (var i = 0; i < index.length; i++) {
       var it = index[i];
       if (!noEscopo(it.type, scope)) continue;
-      var score = scoreItem(it.lc, q);
+      if (hideAdult && it.adult) continue;
+      var score = scoreItem(it, q);
       if (score === -1) continue;
 
-      var match = { item: it.original, score: score, title: it.title, type: it.type };
+      var match = {
+        item: it.original,
+        score: score,
+        title: it.title,
+        type: it.type,
+        year: it.year || 0,
+        ficha: it.ficha ? 1 : 0
+      };
 
       if (it.type === 'channel') canais.push(match);
       else if (it.type === 'series') series.push(match);
@@ -104,7 +122,10 @@
     }
 
     function sortMatch(a, b) {
-      return a.score - b.score || a.title.localeCompare(b.title);
+      if (a.score !== b.score) return a.score - b.score;
+      if (b.ficha !== a.ficha) return b.ficha - a.ficha;
+      if (b.year !== a.year) return b.year - a.year;
+      return a.title.localeCompare(b.title);
     }
 
     canais.sort(sortMatch);
@@ -119,7 +140,6 @@
     if (animes.length > lim) animes = animes.slice(0, lim);
     if (doramas.length > lim) doramas = doramas.slice(0, lim);
 
-    // Extrair apenas o item original
     var resCanais = [];
     for (var c = 0; c < canais.length; c++) resCanais.push(canais[c].item);
     var resFilmes = [];
@@ -158,7 +178,7 @@
       ready = true;
       self.postMessage({ cmd: 'ready', count: index.length });
     } else if (cmd === 'search') {
-      search(data.q, data.limit, data.reqId, data.scope);
+      search(data.q, data.limit, data.reqId, data.scope, !!data.hideAdult);
     } else if (cmd === 'clear') {
       index = [];
       ready = false;

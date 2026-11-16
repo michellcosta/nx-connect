@@ -27,7 +27,8 @@ var SaimoAjustes = {
     xtreamUser: "",
     xtreamPass: "",
     pacoteEmbutido: false,
-    pularAbertura: false
+    pularAbertura: false,
+    vistaAoVivo: "grade"
   },
   _rawCache: null,
   _versao: 0,
@@ -150,6 +151,7 @@ var SaimoAjustes = {
     }
   },
   ehAdulto: function ehAdulto(item) {
+    if (window.SaimoAdultos && SaimoAdultos.eh) return SaimoAdultos.eh(item);
     var t = (item && (item.category || item.name || item.title) || "").toLowerCase();
     return /adulto|sexy hot|playboy|sex prive|penthouse|hustler|brasileirinhas|venus/.test(t);
   }

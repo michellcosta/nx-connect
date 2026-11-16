@@ -17,10 +17,10 @@ var SaimoJogosEspn = (function () {
   var LIGAS = [
     { slug: "bra.1", nome: "Brasileirão Série A" },
     { slug: "bra.2", nome: "Brasileirão Série B" },
-    { slug: "bra.3", nome: "Brasileirão Série C" },
-    { slug: "bra.copa_do_brazil", nome: "Copa do Brasil" },
+    { slug: "bra.3", nome: "Brasileirão Série C", tabela: false },
+    { slug: "bra.copa_do_brazil", nome: "Copa do Brasil", tabela: false },
     { slug: "conmebol.libertadores", nome: "Libertadores" },
-    { slug: "conmebol.sudamericana", nome: "Sudamericana" },
+    { slug: "conmebol.sudamericana", nome: "Sulamericana" },
     { slug: "uefa.champions", nome: "Champions" },
     { slug: "uefa.europa", nome: "Europa League" },
     { slug: "eng.1", nome: "Premier League" },
@@ -231,39 +231,64 @@ var SaimoJogosEspn = (function () {
 
   /* ---------- Tabela do campeonato ---------- */
 
+  function linhasDe(standings) {
+    var linhas = [];
+    var entradas = (standings && standings.entries) || [];
+    entradas.forEach(function (e) {
+      var st = {};
+      (e.stats || []).forEach(function (s) { st[s.name] = s.displayValue; });
+      var pos = parseInt(st.rank, 10);
+      if (isNaN(pos)) pos = linhas.length + 1;
+      linhas.push({
+        pos: pos,
+        time: (e.team && e.team.displayName) || "",
+        logo: (e.team && e.team.logos && e.team.logos[0] && e.team.logos[0].href) || "",
+        pontos: st.points || "0",
+        jogos: st.gamesPlayed || "0",
+        vitorias: st.wins || "0",
+        empates: st.ties || "0",
+        derrotas: st.losses || "0",
+        saldo: st.pointDifferential || st.goalDifferential || ""
+      });
+    });
+    linhas.sort(function (a, b) {
+      return a.pos - b.pos;
+    });
+    return linhas;
+  }
+
+  function nomeGrupo(no) {
+    var n = String((no && (no.name || no.abbreviation || no.shortName)) || "").trim();
+    if (!n || /^(overall|total|league|general)$/i.test(n)) return "";
+    var g = n.match(/^group\s+(.+)$/i);
+    if (g) return "Grupo " + g[1];
+    return n;
+  }
+
+  function coletarGrupos(no, saida) {
+    if (!no) return;
+    var linhas = linhasDe(no.standings);
+    if (linhas.length) {
+      saida.push({ nome: nomeGrupo(no), linhas: linhas });
+      return;
+    }
+    var kids = no.children || [];
+    for (var i = 0; i < kids.length; i++) coletarGrupos(kids[i], saida);
+  }
+
   function tabela(slug) {
     var agora = Date.now();
     var c = cacheTabelas[slug];
-    if (c && agora - c.quando < TTL_TABELA) return Promise.resolve(c.linhas);
+    if (c && agora - c.quando < TTL_TABELA) return Promise.resolve(c.grupos);
     return pegar(STAND_BASE + slug + "/standings").then(function (dados) {
-      var linhas = [];
+      var grupos = [];
       try {
-        var entradas = (dados && dados.children && dados.children[0] && dados.children[0].standings && dados.children[0].standings.entries) || [];
-        entradas.forEach(function (e) {
-          var st = {};
-          (e.stats || []).forEach(function (s) { st[s.name] = s.displayValue; });
-          var pos = parseInt(st.rank, 10);
-          if (isNaN(pos)) pos = linhas.length + 1;
-          linhas.push({
-            pos: pos,
-            time: (e.team && e.team.displayName) || "",
-            logo: (e.team && e.team.logos && e.team.logos[0] && e.team.logos[0].href) || "",
-            pontos: st.points || "0",
-            jogos: st.gamesPlayed || "0",
-            vitorias: st.wins || "0",
-            empates: st.ties || "0",
-            derrotas: st.losses || "0",
-            saldo: st.pointDifferential || st.goalDifferential || ""
-          });
-        });
+        coletarGrupos(dados, grupos);
       } catch (err) {
-        linhas = [];
+        grupos = [];
       }
-      linhas.sort(function (a, b) {
-        return a.pos - b.pos;
-      });
-      cacheTabelas[slug] = { linhas: linhas, quando: agora };
-      return linhas;
+      cacheTabelas[slug] = { grupos: grupos, quando: agora };
+      return grupos;
     }).catch(function () {
       return [];
     });

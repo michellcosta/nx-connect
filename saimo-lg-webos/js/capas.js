@@ -33,23 +33,14 @@ var SaimoCapas = {
     var d = window.SaimoDiagnostico && SaimoDiagnostico.detectarWebOS && SaimoDiagnostico.detectarWebOS();
     this._leve = !!(d && d.webos);
     if (this._leve) {
-      if ((d.chromium || 0) >= 84) {
-        /* TV moderna (webOS 22+): a fileira visível inteira carrega na
-           montagem, downloads em paralelo e w185 (nítido em 1080p). A janela
-           de foco continua — o que sai da visão é liberado. */
-        this.MAX_AUTO = 6;
-        this.JANELA = 3;
-        this.MAX_FILA = 3;
-        this.CACHE_MAX = 120;
-        this._w = "w342";
-      } else {
-        /* webOS 3-6 (Chromium 38-79): limites apertados de sempre. */
-        this.MAX_AUTO = 3;
-        this.JANELA = 2;
-        this.MAX_FILA = 1;
-        this.CACHE_MAX = 40;
-        this._w = "w92";
-      }
+      /* Um só modo para TODAS as TVs: o perfil das modernas (webOS 22+) —
+         fileira inteira na montagem, downloads em paralelo e w342. O modo
+         leve das TVs antigas (w92, fila de 1, cache 40) acabou. */
+      this.MAX_AUTO = 6;
+      this.JANELA = 3;
+      this.MAX_FILA = 3;
+      this.CACHE_MAX = 120;
+      this._w = "w342";
     }
     return this._leve;
   },
@@ -116,20 +107,22 @@ var SaimoCapas = {
   aplicar: function (card, item, url) {
     if (!card || !url) return;
     url = this.urlLeve(url);
-    item.posterUrl = url;
+    if (item) item.posterUrl = url;
     var ph = card.querySelector(".mini-ph");
     var media = card.querySelector(".od-poster-media");
-    var alvo = ph || media;
-    if (!alvo) return;
     var img = card.querySelector("img");
     if (!img) {
       img = document.createElement("img");
       img.alt = "";
-      if (this.suportaLazy()) img.loading = "lazy";
+      img.loading = "eager";
       if (ph) card.replaceChild(img, ph);
-      else {
-        alvo.textContent = "";
-        alvo.appendChild(img);
+      else if (media) {
+        media.textContent = "";
+        media.appendChild(img);
+      } else {
+        var nome = card.querySelector(".mini-name");
+        if (nome) card.insertBefore(img, nome);
+        else card.insertBefore(img, card.firstChild);
       }
     }
     if (img.getAttribute("src") !== url) img.src = url;
@@ -140,13 +133,24 @@ var SaimoCapas = {
     var img = card.querySelector("img");
     if (!img) return;
     img.removeAttribute("src");
-    img.parentNode.removeChild(img);
+    var pai = img.parentNode;
+    if (!pai) return;
+    var naMedia = pai.className && String(pai.className).indexOf("od-poster-media") !== -1;
+    pai.removeChild(img);
+    if (naMedia || card.querySelector(".mini-ph") || card.querySelector(".od-poster-media")) return;
+    var ph = document.createElement("div");
+    ph.className = "mini-ph";
+    var nome = card.querySelector(".mini-name");
+    var letra = nome && nome.textContent ? nome.textContent.charAt(0) : "?";
+    ph.textContent = letra.toUpperCase();
+    if (nome) card.insertBefore(ph, nome);
+    else card.insertBefore(ph, card.firstChild);
   },
 
   pedir: function (item, card, prioridade) {
-    var _this = this;
-    if (!item || !card || !window.SaimoFicha || !SaimoFicha.posterDe) return;
-    if (card.querySelector("img") && card.querySelector("img").src) return;
+    if (!item || !card) return;
+    var img = card.querySelector("img");
+    if (img && img.getAttribute("src")) return;
     var ck = this.chaveItem(item);
     if (this._cache[ck]) {
       this.aplicar(card, item, this._cache[ck]);
@@ -158,6 +162,7 @@ var SaimoCapas = {
       this.aplicar(card, item, leve);
       return;
     }
+    if (!window.SaimoFicha || !SaimoFicha.posterDe) return;
     this._fila.push({
       item: item,
       card: card,
@@ -173,10 +178,8 @@ var SaimoCapas = {
 
   _bombeiar: function () {
     var _this2 = this;
-    while (this._ativos < this.MAX_FILA && this._fila.length) {
-      var job = this._fila.shift();
-      if (!job.card.isConnected) continue;
-      this._ativos++;
+    function rodar(job) {
+      _this2._ativos++;
       SaimoFicha.posterDe(job.item.title || job.item.name, job.serie).then(function (url) {
         _this2._ativos--;
         if (url) {
@@ -192,6 +195,11 @@ var SaimoCapas = {
         _this2._ativos--;
         _this2._bombeiar();
       });
+    }
+    while (this._ativos < this.MAX_FILA && this._fila.length) {
+      var job = this._fila.shift();
+      if (!job || !job.card || !job.card.isConnected) continue;
+      rodar(job);
     }
   },
 
@@ -245,15 +253,22 @@ var SaimoCapas = {
     var _this5 = this;
     /* Fora do webOS (debug/mouse) não há motivo pra janela: carrega tudo. */
     var leve = this.ehLeve();
-    var top = leve ? this.indicesTop4(items) : null;
-    var foco = focoCol == null ? -999 : focoCol;
+    var foco = focoCol == null ? 0 : focoCol;
+    var g = track.getBoundingClientRect();
+    var folga = 80;
     Array.prototype.forEach.call(track.querySelectorAll(".home-mini"), function (card, ci) {
       var item = items[ci];
       if (!item || !(item.title || item.name)) return;
       if (item.type === "channel" || item.type === "jogo" || item.type === "acao") return;
-      var carregar = !leve || top[ci] || Math.abs(ci - foco) <= _this5.JANELA;
-      if (carregar) _this5.pedir(item, card, Math.abs(ci - foco) <= 1);
-      else if (leve && !top[ci]) _this5.liberar(card);
+      if (!leve) {
+        _this5.pedir(item, card, true);
+        return;
+      }
+      var r = card.getBoundingClientRect();
+      var visivel = r.right > g.left - folga && r.left < g.right + folga;
+      if (ci === foco) visivel = true;
+      if (visivel) _this5.pedir(item, card, ci === foco || Math.abs(ci - foco) <= 1);
+      else _this5.liberar(card);
     });
   },
 

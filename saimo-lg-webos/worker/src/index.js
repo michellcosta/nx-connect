@@ -1,10 +1,13 @@
 /**
- * Proxy CORS (guiadetv, meuguia, TMDB) + ranking de hosts da telemetria.
+ * Proxy CORS (guiadetv, meuguia, TMDB) + ranking + EPG magro.
  *
  *   npx wrangler kv namespace create RANKING
  *   # cola o id em wrangler.toml
  *   npx wrangler deploy
+ *
+ * EPG: nx-conexao.pages.dev/epg.json (Action no repo Pages). KV só espelha.
  */
+import { epgGet, atualizarEpg } from "./epg.js";
 const ALLOW = new Set([
   "www.guiadetv.com",
   "guiadetv.com",
@@ -198,11 +201,12 @@ async function parearGravar(request, env, code) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
+    if (url.pathname === "/epg" && request.method === "GET") return epgGet(env, ctx, json);
     if (url.pathname === "/proxy" && request.method === "GET") return proxy(request, env);
     if (url.pathname === "/tmdb" && request.method === "GET") return tmdb(request, env);
     if (url.pathname === "/v1/ranking" && request.method === "GET") return rankingGet(env);
@@ -216,5 +220,8 @@ export default {
       if (request.method === "POST") return parearGravar(request, env, code);
     }
     return json({ ok: true, service: "saimo-webos" });
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(atualizarEpg(env).catch(function () {}));
   }
 };

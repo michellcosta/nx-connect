@@ -9,8 +9,8 @@ var SaimoGenerosOd = {
   cache: null,
   recs: function recs(genero) {
     if (!window.SaimoFicha || !SaimoFicha.listarPorGenero) return [];
-    var f = SaimoFicha.listarPorGenero(false, genero, 0, true) || [];
-    var s = SaimoFicha.listarPorGenero(true, genero, 0, true) || [];
+    var f = SaimoFicha.listarPorGenero(false, genero, this.MAX, true) || [];
+    var s = SaimoFicha.listarPorGenero(true, genero, this.MAX, true) || [];
     var mix = [];
     var i;
     for (i = 0; i < f.length; i++) mix.push({ rec: f[i], serie: false, ano: f[i].ano || 0 });
