@@ -573,6 +573,35 @@ var SaimoAPI = {
     }
     return [];
   },
+  /* Só quando o link do catálogo não abre. O site devolve 302 para o arquivo. */
+  urlStream: function urlStream(ch) {
+    if (!ch || ch.isLive) return "";
+    var item = ch.vodItem || {};
+    var id = parseInt(ch.tmdb || item.tmdb || item.tmdbId || 0, 10) || 0;
+    if (!id && window.SaimoFicha && SaimoFicha.tmdbId) {
+      id = parseInt(SaimoFicha.tmdbId(item.title, item.type === "series") || 0, 10) || 0;
+    }
+    if (!id) return "";
+    var ep = ch.episode;
+    var serie = item.type === "series" || !!ep;
+    var audio = "";
+    var fontes = ch.sources || [];
+    var i;
+    for (i = 0; i < fontes.length; i++) {
+      if (fontes[i] && fontes[i].audio) {
+        audio = String(fontes[i].audio).toLowerCase();
+        break;
+      }
+    }
+    var versao = audio.indexOf("leg") === 0 ? "leg" : "dub";
+    var u = "https://saimo-tv.pages.dev/api/stream?tipo=" + (serie ? "series" : "movie") + "&id=" + id + "&versao=" + versao;
+    if (serie && ep) {
+      var temporada = parseInt(ep.season, 10) || 1;
+      var numero = parseInt(ep.episode, 10) || 1;
+      u += "&s=" + temporada + "&e=" + numero;
+    }
+    return u;
+  },
   expandStreamUrl: function expandStreamUrl(token) {
     if (!token) return "";
     token = token.trim();
@@ -764,6 +793,53 @@ var SaimoAPI = {
       episode: epNum,
       sources: sources
     };
+  },
+  /**
+   * categorias.txt: tipo (f|s), título e categorias (anime, dorama, novela, kids).
+   * O mesmo arquivo do site. Título fora daqui é filme ou série comum.
+   */
+  _parseCategorias: function _parseCategorias(text) {
+    var mapa = {
+      f: { anime: [], dorama: [], novela: [], kids: [] },
+      s: { anime: [], dorama: [], novela: [], kids: [] }
+    };
+    String(text || "").split("\n").forEach(function (raw) {
+      var line = raw.replace(/\r$/, "");
+      if (!line || line.charAt(0) === "#") return;
+      var cols = line.split("\t");
+      if (cols.length < 3) return;
+      var tipo = String(cols[0] || "").trim();
+      var titulo = String(cols[1] || "").trim();
+      if ((tipo !== "f" && tipo !== "s") || !titulo) return;
+      String(cols[2] || "").split(",").forEach(function (c) {
+        var cat = String(c || "").trim();
+        if (mapa[tipo][cat]) mapa[tipo][cat].push(titulo);
+      });
+    });
+    return mapa;
+  },
+  _catMap: null,
+  _catPromise: null,
+  loadCategorias: function loadCategorias() {
+    var self = this;
+    if (self._catMap) return Promise.resolve(self._catMap);
+    if (self._catPromise) return self._catPromise;
+    function ler(url) {
+      return fetch(url).then(function (res) {
+        if (!res || !res.ok) return "";
+        return res.text();
+      }).catch(function () {
+        return "";
+      });
+    }
+    self._catPromise = ler("vod/categorias.txt").then(function (text) {
+      if (text && text.indexOf("\t") !== -1) return text;
+      return ler("https://filmes-saimo.pages.dev/categorias.txt");
+    }).then(function (text) {
+      self._catMap = self._parseCategorias(text);
+      return self._catMap;
+    });
+    return self._catPromise;
   },
   /**
    * Animes e doramas: o mesmo arquivo que o Mac lê (redeflix/links-*.txt).

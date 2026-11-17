@@ -309,6 +309,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     this._segurarFonte = false;
     if (!mesmaFonte) this._fonteTocou = false;
     if (this.currentChannel !== channel) this.failedHosts = [];
+    if (sourceIndex === 0 && !(channel.sources && channel.sources[0] && channel.sources[0].resolver)) this._tentouResolver = false;
     if (this.currentChannel !== channel) this._stallRecuperacoes = 0;
     var canalAnterior = this.currentChannel;
     var idxAnterior = this.currentSourceIndex;
@@ -629,6 +630,29 @@ var SaimoPlayer = /*#__PURE__*/function () {
       this.showStatus("Fonte " + (nextIndex + 1) + "…");
       this._trocando = false;
       this.playChannel(this.currentChannel, nextIndex, this.isLive ? 0 : this.video.currentTime || 0);
+    } else if (!this.isLive && !this._tentouResolver && window.SaimoAPI && SaimoAPI.urlStream) {
+      var urlRes = SaimoAPI.urlStream(this.currentChannel);
+      if (urlRes) {
+        this._tentouResolver = true;
+        this._trocando = false;
+        var lista = this.currentChannel.sources || [];
+        this.currentChannel.sources = lista;
+        lista.push({
+          url: urlRes,
+          quality: "Saimo",
+          audio: atual && atual.audio || "",
+          resolver: true
+        });
+        this.showStatus("Buscando outra cópia…");
+        this.playChannel(this.currentChannel, lista.length - 1, this.video.currentTime || 0);
+      } else {
+        this._trocando = false;
+        this.showLoading(false);
+        this.showStatus("Todas as fontes falharam no momento.");
+        if (window.SaimoDiagnostico) SaimoDiagnostico.linha("FIM · todas as fontes falharam");
+        this.showOSD(6000);
+        if (this.callbacks.onChannelDown) this.callbacks.onChannelDown(this.currentChannel);
+      }
     } else {
       this._trocando = false;
       this.showLoading(false);

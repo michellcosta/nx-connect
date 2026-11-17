@@ -32,7 +32,11 @@ document.addEventListener("DOMContentLoaded", function () {
     var odFlyEl = document.getElementById("od-fly");
     var odTitle = document.getElementById("od-title");
     var odGrid = document.getElementById("od-grid");
-    var BROWSE_TABS = ["ondemand", "filmes", "series", "animes", "doramas"];
+    var BROWSE_TABS = ["ondemand", "filmes", "series", "animes", "doramas", "novelas", "kids"];
+    function ehColecao(kind) {
+      return kind === "animes" || kind === "doramas" || kind === "novelas" || kind === "kids";
+    }
+    var HUB_SECOES = ["filmes", "series", "animes", "doramas", "novelas", "kids", "novelinhas"];
     var playerContainer = document.getElementById("player-container");
     var modalOverlay = document.getElementById("modal-overlay");
     var searchModal = document.getElementById("search-modal");
@@ -895,6 +899,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (!card.posterUrl && it.posterUrl) card.posterUrl = it.posterUrl;
       if (!card.year && it.year) card.year = it.year;
+      if (it.colecao && !card.colecao) card.colecao = it.colecao;
+      if (it.kind && !card.kind) card.kind = it.kind;
+      if (it.marca && !card.marca) card.marca = it.marca;
+      if (it.letter && !card.letter) card.letter = it.letter;
       return card;
     }
     function isAbaGenero(k) {
@@ -1360,7 +1368,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (browseKind === "ondemand") {
             pintarHub();
             updateBrowseFocus();
-          } else if (browseKind === "filmes" || browseKind === "series" || browseKind === "animes" || browseKind === "doramas") {
+          } else if (browseKind === "filmes" || browseKind === "series" || ehColecao(browseKind)) {
             preencherPrateleira(browseKind, true);
           }
         }
@@ -1692,7 +1700,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!it || it.type === "acao") return true;
       var title = it.title || it.name || "";
       if (!title) return false;
-      kind = kind || (it.type === "movie" ? "filmes" : it.colecao === "animes" || it.kind === "anime" ? "animes" : it.colecao === "doramas" || it.kind === "dorama" ? "doramas" : "series");
+      kind = kind || (it.colecao === "novelas" ? "novelas" : it.colecao === "kids" ? "kids" : it.type === "movie" ? "filmes" : it.colecao === "animes" || it.kind === "anime" ? "animes" : it.colecao === "doramas" || it.kind === "dorama" ? "doramas" : "series");
       var ver = window.SAIMO_FONTES_VER || 0;
       if (ver !== _temPlayVer) {
         _temPlayVer = ver;
@@ -1711,6 +1719,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return r;
     }
     function itemTemPlayCalc(it, kind, title) {
+      /* Novelas/Kids vêm do categorias.txt: a letra basta para o player
+         buscar o arquivo da gaveta na hora de tocar. */
+      if (it.type !== "acao" && (it.colecao === "novelas" || it.colecao === "kids" || kind === "novelas" || kind === "kids")) return true;
       if (kind === "filmes" || it.type === "movie") {
         if (it.sources && it.sources.length) return true;
         if (it.xtreamId) return true;
@@ -2070,11 +2081,15 @@ document.addEventListener("DOMContentLoaded", function () {
     var OD_PAGE = 16;
     var colecaoCache = {
       animes: null,
-      doramas: null
+      doramas: null,
+      novelas: null,
+      kids: null
     };
     var colecaoOk = {
       animes: false,
-      doramas: false
+      doramas: false,
+      novelas: false,
+      kids: false
     };
     var cacheCandidatos = null;
     var infoOverviewTop = 0;
@@ -2734,6 +2749,78 @@ document.addEventListener("DOMContentLoaded", function () {
       }));
       return _ensureVodCategories.apply(this, arguments);
     }
+    var KIDS_PULAR_GENERO = {
+      "Animação": 1,
+      "Terror": 1,
+      "Suspense": 1,
+      "Crime": 1,
+      "Guerra": 1
+    };
+    function preencherCatsPorCategoria(section, lista) {
+      var cands = [];
+      var i;
+      for (i = 0; i < (lista || []).length; i++) {
+        var it = lista[i];
+        if (!it) continue;
+        var serie = it.type !== "movie";
+        var capa = it.posterUrl || "";
+        if (!capa && window.SaimoFicha && SaimoFicha.capaDe) capa = SaimoFicha.capaDe(it.title, serie) || "";
+        if (!capa) continue;
+        var card = Object.assign({}, it, {
+          posterUrl: capa,
+          type: serie ? "series" : "movie"
+        });
+        var gens = it._gens && it._gens.length ? it._gens : window.SaimoFicha && SaimoFicha.generosDe ? SaimoFicha.generosDe(it.title, serie) || [] : [];
+        var nomes = [];
+        var gi;
+        for (gi = 0; gi < gens.length; gi++) {
+          var nome = nomeGenero(gens[gi], serie);
+          if (nome) nomes.push(nome);
+        }
+        cands.push({
+          ano: anoDeItem(it),
+          generos: nomes,
+          card: card,
+          serie: serie
+        });
+      }
+      cands.sort(function (a, b) {
+        return b.ano - a.ano;
+      });
+      var topo = [];
+      var series = [];
+      var filmes = [];
+      for (i = 0; i < cands.length; i++) {
+        if (topo.length < 25) topo.push(cands[i].card);
+        if (cands[i].serie) {
+          if (series.length < 40) series.push(cands[i].card);
+        } else if (filmes.length < 40) filmes.push(cands[i].card);
+      }
+      if (topo.length >= 3) colecaoCats["Mais populares"] = topo;
+      if (section === "kids") {
+        if (series.length >= 4) colecaoCats["Desenhos e séries"] = series;
+        if (filmes.length >= 4) colecaoCats["Filmes para a família"] = filmes;
+      }
+      var buckets = {};
+      for (i = 0; i < cands.length; i++) {
+        var gs = cands[i].generos || [];
+        var vistoG = Object.create(null);
+        for (gi = 0; gi < gs.length; gi++) {
+          var g = gs[gi];
+          if (!g || vistoG[g]) continue;
+          vistoG[g] = 1;
+          if (section === "kids" && KIDS_PULAR_GENERO[g]) continue;
+          if (!buckets[g]) buckets[g] = [];
+          if (buckets[g].length < 48) buckets[g].push(cands[i].card);
+        }
+      }
+      Object.keys(buckets).forEach(function (n) {
+        if (buckets[n].length >= 4 && !colecaoCats[n]) colecaoCats[n] = buckets[n];
+      });
+      if (!Object.keys(colecaoCats).length && colecaoLista.length) {
+        colecaoCats["Lançamentos"] = colecaoLista.slice(0, 48);
+      }
+    }
     function ensureColecaoCategories(_x4) {
       return _ensureColecaoCategories.apply(this, arguments);
     }
@@ -2751,7 +2838,7 @@ document.addEventListener("DOMContentLoaded", function () {
             case 1:
               lista = _context7.v;
               colecaoLista = lista.map(function (it) {
-                return cardDoAcervo(it, true);
+                return cardDoAcervo(it, it.type !== "movie");
               });
               if (!(window.SaimoFicha && SaimoFicha.ensureIndex)) {
                 _context7.n = 5;
@@ -2771,6 +2858,10 @@ document.addEventListener("DOMContentLoaded", function () {
               return destaquesFilas();
             case 6:
               filas = _context7.v;
+              if (section === "novelas" || section === "kids") {
+                preencherCatsPorCategoria(section, lista);
+                return _context7.a(2);
+              }
               filas.forEach(function (f) {
                 if (/em alta/i.test(f.title || "")) return;
                 var items = mapDestRow((f.items || []).filter(function (it) {
@@ -2803,7 +2894,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function indiceAbaInicial(subCategories) {
       var cats = null;
-      if (currentSection === "filmes") cats = filmesCats;else if (currentSection === "series") cats = seriesCats;else if (currentSection === "animes" || currentSection === "doramas") cats = colecaoCats;
+      if (currentSection === "filmes") cats = filmesCats;else if (currentSection === "series") cats = seriesCats;else if (ehColecao(currentSection)) cats = colecaoCats;
       if (!cats) return 0;
       for (var i = 1; i < subCategories.length; i++) {
         var nome = subCategories[i];
@@ -4532,6 +4623,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (secao === "series") return itensSerieSemAnime(catalogItems(seriesRows)).length;
       if (secao === "animes" && colecaoCache.animes) return colecaoCache.animes.length;
       if (secao === "doramas" && colecaoCache.doramas) return colecaoCache.doramas.length;
+      if ((secao === "novelas" || secao === "kids") && colecaoCache[secao]) return colecaoCache[secao].length;
       return 0;
     }
     function candidatosDe(isSeries, limite) {
@@ -4906,24 +4998,37 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function marcarColecaoItem(it, tipo) {
       if (!it) return it;
+      if (tipo === "novelas" || tipo === "kids") {
+        it.type = it.type === "movie" ? "movie" : "series";
+        it.kind = tipo === "novelas" ? "novela" : "kids";
+        it.marca = tipo === "novelas" ? "n" : "k";
+        it.colecao = tipo;
+        return it;
+      }
       it.type = it.type === "movie" ? "movie" : "series";
       it.kind = tipo === "animes" ? "anime" : "dorama";
       it.marca = tipo === "animes" ? "a" : "d";
       it.colecao = tipo;
       return it;
     }
+    function chaveMescla(tipo, it) {
+      var t = (it && (it.title || it.name)) || "";
+      if (tipo !== "novelas" && tipo !== "kids") return fold(t);
+      var y = (String(t).match(/\((\d{4})\)\s*$/) || ["", ""])[1];
+      return fold(t) + "|" + y;
+    }
     function mesclarColecao(tipo, extra) {
       var out = colecaoCache[tipo] ? colecaoCache[tipo].slice() : [];
       var visto = Object.create(null);
       var i, it, k, pos;
       for (i = 0; i < out.length; i++) {
-        k = fold((out[i] && (out[i].title || out[i].name)) || "");
+        k = chaveMescla(tipo, out[i]);
         if (k) visto[k] = i;
       }
       for (i = 0; i < (extra || []).length; i++) {
         it = extra[i];
         if (!it) continue;
-        k = fold(it.title || it.name || "");
+        k = chaveMescla(tipo, it);
         if (!k) continue;
         marcarColecaoItem(it, tipo);
         pos = visto[k];
@@ -5086,6 +5191,44 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return colecaoCache[tipo] || [];
     }
+    function itensCategoriaAcervo(cat) {
+      var alvo = cat === "novelas" ? "novela" : "kids";
+      var fichaP = window.SaimoFicha && SaimoFicha.ensureIndex ? SaimoFicha.ensureIndex().catch(function () {}) : Promise.resolve();
+      var mapaP = window.SaimoAPI && SaimoAPI.loadCategorias ? SaimoAPI.loadCategorias() : Promise.resolve(null);
+      return Promise.all([fichaP, mapaP]).then(function (res) {
+        var mapa = res[1];
+        if (!mapa) return [];
+        var out = [];
+        var visto = Object.create(null);
+        ["f", "s"].forEach(function (tipoLinha) {
+          var titulos = mapa[tipoLinha] && mapa[tipoLinha][alvo] || [];
+          var i;
+          for (i = 0; i < titulos.length; i++) {
+            var titulo = titulos[i];
+            var serie = tipoLinha === "s";
+            var y = (String(titulo).match(/\((\d{4})\)\s*$/) || ["", ""])[1];
+            var k = fold(titulo) + "|" + y;
+            if (!k || visto[k]) continue;
+            visto[k] = 1;
+            var meta = window.SaimoFicha && SaimoFicha.metaDe ? SaimoFicha.metaDe(titulo, serie) : null;
+            var capa = meta && meta.capa || "";
+            if (!capa && window.SaimoFicha && SaimoFicha.capaDe) capa = SaimoFicha.capaDe(titulo, serie) || "";
+            out.push(marcarColecaoItem({
+              type: serie ? "series" : "movie",
+              title: titulo,
+              name: titulo,
+              year: meta && meta.ano ? String(meta.ano) : y,
+              letter: letraItem({ title: titulo }),
+              posterUrl: capa,
+              sources: [],
+              episodes: [],
+              _gens: meta && meta.generos ? meta.generos.slice() : []
+            }, cat));
+          }
+        });
+        return out;
+      });
+    }
     function garantirColecao(_x8) {
       return _garantirColecao.apply(this, arguments);
     }
@@ -5101,6 +5244,17 @@ document.addEventListener("DOMContentLoaded", function () {
               }
               return _context11.a(2, colecaoCache[tipo]);
             case 1:
+              if (!(tipo === "novelas" || tipo === "kids")) {
+                _context11.n = 10;
+                break;
+              }
+              _context11.n = 11;
+              return itensCategoriaAcervo(tipo);
+            case 11:
+              mesclarColecao(tipo, _context11.v || []);
+              colecaoOk[tipo] = true;
+              return _context11.a(2, colecaoCache[tipo] || []);
+            case 10:
               colherColecaoLocal(tipo);
               if (tipo === "animes" && colecaoCache.animes && colecaoCache.animes.length && window.SaimoFicha && SaimoFicha.loaded) {
                 colecaoOk.animes = true;
@@ -5308,7 +5462,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (kind === "series") return it.type === "series" && !itemPareceAnime(it);
                 return true;
               });
-              if (cont.length && kind !== "animes" && kind !== "doramas") {
+              if (cont.length && !ehColecao(kind)) {
                 rows.push({
                   title: "Continue assistindo",
                   items: cont,
@@ -5396,7 +5550,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return browseKind === "ondemand";
     }
     function modoPrateleira() {
-      return browseKind === "filmes" || browseKind === "series" || browseKind === "animes" || browseKind === "doramas";
+      return browseKind === "filmes" || browseKind === "series" || ehColecao(browseKind);
     }
     function aplicarModoBrowse() {
       var hub = modoHub();
@@ -5407,7 +5561,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (browseToolbar) browseToolbar.classList.add("hidden");
     }
     function svgSecao(secao) {
-      var cor = secao === "filmes" || secao === "animes" ? "#0a0d14" : "#fff";
+      var cor = secao === "filmes" || secao === "animes" || secao === "novelas" || secao === "kids" || secao === "novelinhas" ? "#0a0d14" : "#fff";
       if (secao === "filmes") {
         return '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="' + cor + '" d="M3 5h2.2l1.6 2.4h2.3L7.5 5h2.2l1.6 2.4h2.4L12.1 5h2.2l1.6 2.4H21v11.2A1.4 1.4 0 0 1 19.6 20H4.4A1.4 1.4 0 0 1 3 18.6V5zm1.8 5.2v7.2h14.4v-7.2H4.8z"/></svg>';
       }
@@ -5416,6 +5570,15 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (secao === "animes") {
         return '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="' + cor + '" d="M12 2.8l2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.2 6.8 18.7l1.2-5.8-4.4-4 5.9-.7z"/></svg>';
+      }
+      if (secao === "novelas") {
+        return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="' + cor + '" d="M5 3.5h10.2A2.8 2.8 0 0 1 18 6.3V20l-4.2-2.4L9.6 20V6.3A2.8 2.8 0 0 0 6.8 3.5H5z"/></svg>';
+      }
+      if (secao === "kids") {
+        return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="' + cor + '" d="M12 3.2l1.6 4.8H18.6l-4 3.1 1.5 4.9L12 13.2 7.9 16l1.5-4.9-4-3.1h5z"/></svg>';
+      }
+      if (secao === "novelinhas") {
+        return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="' + cor + '" d="M8 3.2h8A1.8 1.8 0 0 1 17.8 5v14a1.8 1.8 0 0 1-1.8 1.8H8A1.8 1.8 0 0 1 6.2 19V5A1.8 1.8 0 0 1 8 3.2zm1.2 3.2h5.6v1.6H9.2V6.4z"/></svg>';
       }
       return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="' + cor + '" d="M12 20.2s-6.6-4.1-6.6-8.6a3.8 3.8 0 0 1 6.6-2.5 3.8 3.8 0 0 1 6.6 2.5c0 4.5-6.6 8.6-6.6 8.6z"/></svg>';
     }
@@ -5428,6 +5591,21 @@ document.addEventListener("DOMContentLoaded", function () {
     function capasDaSecao(secao, n) {
       n = n || 4;
       if (hubCapasCache[secao] && hubCapasCache[secao].length >= n) return hubCapasCache[secao].slice(0, n);
+      if (secao === "novelas" || secao === "kids" || secao === "novelinhas") {
+        var urlsNk = [];
+        var vistoNk = Object.create(null);
+        var listaNk = secao === "novelinhas" && window.SaimoNovelinhas && SaimoNovelinhas.capas ? SaimoNovelinhas.capas(n) : colecaoCache[secao] || [];
+        var ink;
+        for (ink = 0; ink < listaNk.length && urlsNk.length < n; ink++) {
+          var capaNk = typeof listaNk[ink] === "string" ? listaNk[ink] : listaNk[ink] && listaNk[ink].posterUrl;
+          capaNk = urlMosaicoHub(capaNk || "");
+          if (!capaNk || vistoNk[capaNk]) continue;
+          vistoNk[capaNk] = 1;
+          urlsNk.push(capaNk);
+        }
+        if (urlsNk.length) hubCapasCache[secao] = urlsNk.slice();
+        return urlsNk;
+      }
       var dest = cacheDestaques();
       var urls = [];
       var visto = Object.create(null);
@@ -5606,7 +5784,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function cardsDestaqueSecao(kind, pred) {
       var dest = cacheDestaques();
       if (!dest || !((dest.filas && dest.filas.length) || Object.keys(dest.filmesRows || {}).length)) {
-        var cats = kind === "animes" || kind === "doramas" ? colecaoCats : kind === "series" ? seriesCats : filmesCats;
+        var cats = ehColecao(kind) ? colecaoCats : kind === "series" ? seriesCats : filmesCats;
         var chave;
         for (chave in cats) {
           if (Object.prototype.hasOwnProperty.call(cats, chave) && pred(chave) && cats[chave].length) {
@@ -5632,6 +5810,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var visto = Object.create(null);
       var add = function add(it) {
         if (!it || !it.title || visto[it.title]) return;
+        if ((kind === "novelas" || kind === "kids") && it.colecao !== kind) return;
         if (kind === "filmes" && (it.marca === "s" || it.marca === "a" || it.marca === "d" || it.type === "series")) return;
         if (kind === "series" && (it.marca === "f" || it.type === "movie" || itemPareceAnime(it))) return;
         /* Animes/Doramas: a fila "Lançamentos" do destaques é marca "f"
@@ -5845,7 +6024,7 @@ document.addEventListener("DOMContentLoaded", function () {
       filhosGenero(kind).forEach(function (g) {
         if (g && g.nome) lado.push(g);
       });
-      if (kind !== "animes" && kind !== "doramas") {
+      if (!ehColecao(kind)) {
         var predAlta = function predAlta(n) {
           return kind === "series" ? /em alta/i.test(n) : /^em alta$/i.test(n);
         };
@@ -6046,6 +6225,18 @@ document.addEventListener("DOMContentLoaded", function () {
         secao: "doramas",
         nome: "Doramas",
         i: 3
+      }, {
+        secao: "novelas",
+        nome: "Novelas",
+        i: 4
+      }, {
+        secao: "kids",
+        nome: "Kids",
+        i: 5
+      }, {
+        secao: "novelinhas",
+        nome: "Novelinhas",
+        i: 6
       }];
       var grade = browseHub.querySelector(".od-hub-grid");
       if (!grade) {
@@ -6469,7 +6660,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       if (code === 37) {
-        if (browseCol === 1 || browseCol === 3) {
+        if (browseCol !== 6 && browseCol % 3 !== 0) {
           browseCol--;
           updateBrowseFocus();
         } else {
@@ -6477,25 +6668,31 @@ document.addEventListener("DOMContentLoaded", function () {
           updateBrowseFocus();
         }
       } else if (code === 39) {
-        if (browseCol === 0 || browseCol === 2) {
+        if (browseCol !== 6 && browseCol % 3 !== 2 && browseCol < 5) {
           browseCol++;
           updateBrowseFocus();
         }
       } else if (code === 38) {
-        if (browseCol >= 2) {
-          browseCol -= 2;
+        if (browseCol === 6) {
+          browseCol = 4;
+          updateBrowseFocus();
+        } else if (browseCol >= 3) {
+          browseCol -= 3;
           updateBrowseFocus();
         } else {
           browseZone = "back";
           updateBrowseFocus();
         }
       } else if (code === 40) {
-        if (browseCol <= 1) {
-          browseCol += 2;
+        if (browseCol < 3) {
+          browseCol += 3;
+          updateBrowseFocus();
+        } else if (browseCol < 6) {
+          browseCol = 6;
           updateBrowseFocus();
         }
       } else if (code === 13) {
-        var secao = ["filmes", "series", "animes", "doramas"][browseCol];
+        var secao = HUB_SECOES[browseCol];
         if (secao) openBrowse(secao);
       }
     }
@@ -6617,7 +6814,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (browseToolbar) browseToolbar.classList.add("hidden");
     }
     function browseSecaoAz() {
-      if (browseKind === "series" || browseKind === "animes" || browseKind === "doramas") return browseKind;
+      if (browseKind === "series" || ehColecao(browseKind)) return browseKind;
       return "filmes";
     }
     function updateBrowseFocus() {
@@ -6627,6 +6824,11 @@ document.addEventListener("DOMContentLoaded", function () {
           var card = browseHub.querySelector('.od-cat[data-col="' + browseCol + '"]');
           if (card) {
             setFocus(card);
+            try {
+              card.scrollIntoView({
+                block: "nearest"
+              });
+            } catch (eHub) {}
             return;
           }
         }
@@ -6702,6 +6904,10 @@ document.addEventListener("DOMContentLoaded", function () {
           while (1) switch (_context15.n) {
             case 0:
               opts = opts || {};
+              if (kind === "novelinhas") {
+                if (window.SaimoNovelinhas) SaimoNovelinhas.abrir();
+                return _context15.a(2);
+              }
               if (!opts.substituir) {
                 if (currentScreen === "browse" && browseKind && browseKind !== kind) browsePilha.push(browseKind);else if (currentScreen !== "browse") browsePilha = [];
               }
@@ -6718,6 +6924,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 series: "SÉRIES",
                 animes: "ANIMES",
                 doramas: "DORAMAS",
+                novelas: "NOVELAS",
+                kids: "KIDS",
                 favoritos: "FAVORITOS"
               };
               if (browseTitle) browseTitle.textContent = titulos[kind] || "ACERVO";
@@ -6762,6 +6970,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 garantirColecao("animes").then(function () {
                   quandoOcioso(refreshHub);
                 }).catch(function () {});
+                garantirColecao("novelas").then(function () {
+                  quandoOcioso(refreshHub);
+                }).catch(function () {});
+                garantirColecao("kids").then(function () {
+                  quandoOcioso(refreshHub);
+                }).catch(function () {});
+                if (window.SaimoNovelinhas && SaimoNovelinhas.precarregar) {
+                  SaimoNovelinhas.precarregar().then(function () {
+                    quandoOcioso(refreshHub);
+                  }).catch(function () {});
+                }
                 if (window.SaimoAPI && SaimoAPI.loadVodDestaques) {
                   SaimoAPI.loadVodDestaques().then(function () {
                     quandoOcioso(refreshHub);
@@ -6810,6 +7029,10 @@ document.addEventListener("DOMContentLoaded", function () {
                       return [];
                     })]);
                   }));
+                } else if (kind === "novelas" || kind === "kids") {
+                  esperaFicha.push(garantirColecao(kind).catch(function () {
+                    return [];
+                  }));
                 }
               }
               _context15.n = 1;
@@ -6826,7 +7049,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 _context15.n = 8;
                 break;
               }
-              if (!(kind === "animes" || kind === "doramas")) {
+              if (!ehColecao(kind)) {
                 _context15.n = 5;
                 break;
               }
@@ -6970,7 +7193,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 filmes: "FILMES",
                 series: "SÉRIES",
                 animes: "ANIMES",
-                doramas: "DORAMAS"
+                doramas: "DORAMAS",
+                novelas: "NOVELAS",
+                kids: "KIDS"
               };
               opts = opts || {};
               if (catalogSectionTitle) {
@@ -6996,7 +7221,7 @@ document.addEventListener("DOMContentLoaded", function () {
               _t11 = _context17.v;
             case 4:
               base = [];
-              if (!(secao === "animes" || secao === "doramas")) {
+              if (!ehColecao(secao)) {
                 _context17.n = 6;
                 break;
               }
@@ -7046,8 +7271,9 @@ document.addEventListener("DOMContentLoaded", function () {
               if (genero) {
                 var _t0gen = Date.now();
                 base = base.filter(function (it) {
-                  var gens = (window.SaimoFicha && SaimoFicha.generosDe ? SaimoFicha.generosDe(it.title, isSeries) : []).map(function (g) {
-                    return nomeGenero(g, isSeries);
+                  var serieItem = secao === "kids" || secao === "novelas" ? it.type === "series" : isSeries;
+                  var gens = (window.SaimoFicha && SaimoFicha.generosDe ? SaimoFicha.generosDe(it.title, serieItem) : []).map(function (g) {
+                    return nomeGenero(g, serieItem);
                   });
                   return gens.indexOf(genero) >= 0;
                 });
@@ -7185,11 +7411,16 @@ document.addEventListener("DOMContentLoaded", function () {
               _context18.n = 8;
               break;
             case 6:
-              if (!(section === "animes" || section === "doramas")) {
+              if (!ehColecao(section)) {
                 _context18.n = 8;
                 break;
               }
-              catalogSectionTitle.textContent = section === "animes" ? "ANIMES" : "DORAMAS";
+              catalogSectionTitle.textContent = {
+                animes: "ANIMES",
+                doramas: "DORAMAS",
+                novelas: "NOVELAS",
+                kids: "KIDS"
+              }[section] || "ACERVO";
               _context18.n = 7;
               return ensureColecaoCategories(section);
             case 7:
@@ -7283,7 +7514,7 @@ document.addEventListener("DOMContentLoaded", function () {
           });
         } else if (currentSection === "filmes") activeItemList = catalogItems(filmesRows).filter(function (m) {
           return isFavorited(m.title);
-        });else if (currentSection === "animes" || currentSection === "doramas") {
+        });else if (ehColecao(currentSection)) {
           activeItemList = colecaoLista.filter(function (s) {
             return isFavorited(s.title);
           });
@@ -7305,7 +7536,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var extra = ehAbaMais(catName) && aovivoMaisNome ? " · " + limparNomeCat(aovivoMaisNome) : "";
           channelCounter.textContent = activeItemList.length + " canais" + extra;
         }
-      } else if (currentSection === "filmes") activeItemList = filmesCats[catName] || [];else if (currentSection === "animes" || currentSection === "doramas") activeItemList = colecaoCats[catName] || [];else activeItemList = seriesCats[catName] || [];
+      } else if (currentSection === "filmes") activeItemList = filmesCats[catName] || [];else if (ehColecao(currentSection)) activeItemList = colecaoCats[catName] || [];else activeItemList = seriesCats[catName] || [];
       channelsGrid.innerHTML = "";
       contentArea.scrollTop = 0;
       renderedCount = 0;
@@ -8587,6 +8818,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 xtream: !!(data.xtream || playingVodItem && playingVodItem.xtream || fonteXt),
                 skipMarks: skipMarks,
                 vodItem: playingVodItem,
+                tmdb: tmdb || (playingVodItem && (playingVodItem.tmdb || playingVodItem.tmdbId)) || 0,
                 episode: ep,
                 episodesList: currentSeriesItem ? currentSeriesItem.episodes || [] : []
               }, 0, data.resumeTime || 0);
@@ -9647,6 +9879,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (browseKind === "series") return "series";
         if (browseKind === "animes") return "animes";
         if (browseKind === "doramas") return "doramas";
+        if (browseKind === "novelas") return "novelas";
+        if (browseKind === "kids") return "kids";
       }
       return "tudo";
     }
@@ -9656,6 +9890,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (esc === "series") return "só séries";
       if (esc === "animes") return "só animes";
       if (esc === "doramas") return "só doramas";
+      if (esc === "novelas") return "só novelas";
+      if (esc === "kids") return "só kids";
       return "canais, filmes, séries, animes, doramas";
     }
     function openSearch() {
@@ -9693,6 +9929,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 return [];
               }));
               if (searchEscopo === "tudo" || searchEscopo === "doramas") espera.push(garantirColecao("doramas").catch(function () {
+                return [];
+              }));
+              if (searchEscopo === "novelas" || searchEscopo === "kids") espera.push(garantirColecao(searchEscopo).catch(function () {
                 return [];
               }));
               if (!espera.length) espera.push(Promise.resolve());
@@ -9968,7 +10207,57 @@ document.addEventListener("DOMContentLoaded", function () {
       if (typeof requestAnimationFrame === "function") requestAnimationFrame(pintar);
       else pintar();
     }
+    function buscarNaColecao(query, kind) {
+      var termo = fold(query);
+      searchGroups = [];
+      searchGroup = 0;
+      searchCol = 0;
+      if (searchResultsGrid) searchResultsGrid.innerHTML = "";
+      if (termo.length < 2) {
+        if (searchResultsCount) searchResultsCount.textContent = "Digite 2 letras para buscar " + textoEscopoBusca(kind).replace("só ", "") + ".";
+        return;
+      }
+      var lista = (colecaoCache[kind] || []).map(function (it) {
+        return {
+          it: it,
+          n: notaBusca(it.title || it.name, query)
+        };
+      }).filter(function (x) {
+        return x.n >= 0;
+      }).sort(function (a, b) {
+        return a.n - b.n;
+      }).slice(0, 40).map(function (x) {
+        return cardDoAcervo(x.it, x.it.type !== "movie");
+      });
+      if (!lista.length) {
+        if (searchResultsCount) searchResultsCount.textContent = "Nada para \"" + query + "\"";
+        return;
+      }
+      searchGroups.push({
+        title: kind === "novelas" ? "Novelas" : "Kids",
+        items: lista,
+        wide: false
+      });
+      var box = document.createElement("div");
+      var h = document.createElement("div");
+      h.className = "search-group-title";
+      h.textContent = kind === "novelas" ? "Novelas" : "Kids";
+      var track = document.createElement("div");
+      track.className = "home-row-track";
+      lista.forEach(function (it) {
+        capaJaPronta(it);
+        track.appendChild(miniCard(it, false, true, true));
+      });
+      box.appendChild(h);
+      box.appendChild(track);
+      if (searchResultsGrid) searchResultsGrid.appendChild(box);
+      if (searchResultsCount) searchResultsCount.textContent = lista.length + " resultado(s) para \"" + query + "\"";
+    }
     function performSearch(query) {
+      if (searchEscopo === "novelas" || searchEscopo === "kids") {
+        buscarNaColecao(query, searchEscopo);
+        return;
+      }
       if (searchWorker && searchWorkerReady) {
         searchWorkerReqId++;
         searchWorker.postMessage({
@@ -12543,6 +12832,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!isBackKey(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (window.SaimoNovelinhas && SaimoNovelinhas.ativo()) {
+        SaimoNovelinhas.voltar();
+        return;
+      }
       if (sairAberto) {
         fecharSairApp();
         return;
@@ -12673,6 +12966,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     function handleNav(e) {
       var code = e.keyCode || e.which;
+      if (window.SaimoNovelinhas && SaimoNovelinhas.ativo()) {
+        e.preventDefault();
+        SaimoNovelinhas.tecla(code);
+        return;
+      }
       if (code === 13 && window.SaimoContexto && SaimoContexto.podeOkLongo() && SaimoContexto.onOkDown(e)) {
         e.preventDefault();
         return;

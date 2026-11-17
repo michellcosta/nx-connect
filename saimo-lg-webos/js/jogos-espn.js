@@ -31,8 +31,21 @@ var SaimoJogosEspn = (function () {
     { slug: "ned.1", nome: "Eredivisie" },
     { slug: "por.1", nome: "Liga Portugal" },
     { slug: "usa.1", nome: "MLS" },
-    { slug: "mex.1", nome: "Liga MX" }
+    { slug: "mex.1", nome: "Liga MX" },
+    { slug: "arg.1", nome: "Argentina", tabela: false },
+    { slug: "ksa.1", nome: "Arábia", tabela: false },
+    { slug: "fifa.world", nome: "Copa do Mundo", tabela: false },
+    { slug: "fifa.worldq.conmebol", nome: "Eliminatórias", tabela: false },
+    { slug: "basketball/nba", nome: "NBA", tabela: false, quadro: 1 },
+    { slug: "football/nfl", nome: "NFL", tabela: false, quadro: 1 },
+    { slug: "baseball/mlb", nome: "MLB", tabela: false, quadro: 1 },
+    { slug: "hockey/nhl", nome: "NHL", tabela: false, quadro: 1 },
+    { slug: "mma/ufc", nome: "UFC", tabela: false, quadro: 1 }
   ];
+
+  /* Siglas que o site tira do nome: "SE Palmeiras" e "Palmeiras" são o mesmo time. */
+  var SIGLAS = { fc: 1, ec: 1, sc: 1, ac: 1, afc: 1, cf: 1, cd: 1, club: 1, clube: 1, esporte: 1, sport: 1, futebol: 1, de: 1, do: 1, da: 1, sp: 1, rj: 1, mg: 1, rs: 1, pr: 1, ba: 1, pe: 1, ce: 1, go: 1, sad: 1 };
+  var ESPORTE = "https://site.api.espn.com/apis/site/v2/sports/";
 
   var cache = { jogos: [], quando: 0, promessa: null };
   var cacheTabelas = {};
@@ -100,9 +113,15 @@ var SaimoJogosEspn = (function () {
 
   /* ---------- Placar do dia (endpoint compacto, uma liga por request) ---------- */
 
+  function urlEsporte(slug, resto) {
+    if (String(slug).indexOf("/") !== -1) return ESPORTE + slug + "/" + resto;
+    return SCORE_BASE + slug + "/" + resto;
+  }
+
   function buscarLiga(liga) {
-    return pegar(HEADER_BASE + liga.slug).then(function (dados) {
-      var eventos = eventosDo(dados);
+    var url = liga.quadro ? ESPORTE + liga.slug + "/scoreboard" : HEADER_BASE + liga.slug;
+    return pegar(url).then(function (dados) {
+      var eventos = liga.quadro ? (dados && dados.events) || [] : eventosDo(dados);
       var saida = [];
       for (var i = 0; i < eventos.length; i++) {
         var j = lerEvento(eventos[i], liga.nome, liga.slug);
@@ -166,9 +185,21 @@ var SaimoJogosEspn = (function () {
 
   /* Igual (sem acento/espaço) ou contenção nos dois lados (mín. 4 letras)
      pra pegar "Inter" vs "Internacional". */
+  function chaveTime(nome) {
+    var s = String(nome || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    var partes = s.split(/[^a-z0-9]+/);
+    var out = "";
+    var i;
+    for (i = 0; i < partes.length; i++) {
+      if (!partes[i] || SIGLAS[partes[i]]) continue;
+      out += partes[i];
+    }
+    return out;
+  }
+
   function casaTime(a, b) {
-    var na = chave(a);
-    var nb = chave(b);
+    var na = chaveTime(a);
+    var nb = chaveTime(b);
     if (!na || !nb) return false;
     if (na === nb) return true;
     return na.length >= 4 && nb.length >= 4 && (na.indexOf(nb) !== -1 || nb.indexOf(na) !== -1);
@@ -179,6 +210,7 @@ var SaimoJogosEspn = (function () {
     var melhorPeso = -1;
     for (var i = 0; i < cache.jogos.length; i++) {
       var e = cache.jogos[i];
+      if (j.inicio && e.inicio && Math.abs(j.inicio - e.inicio) >= 4 * 3600000) continue;
       var normal = casaTime(j.casa, e.casa) && casaTime(j.fora, e.fora);
       var trocado = casaTime(j.casa, e.fora) && casaTime(j.fora, e.casa);
       if (!normal && !trocado) continue;
@@ -204,23 +236,22 @@ var SaimoJogosEspn = (function () {
         if (!e) return;
         j.espnId = e.id;
         if (!j.ligaSlug) j.ligaSlug = e.ligaSlug;
-        var temPlacar = typeof e.placarCasa === "number" && typeof e.placarFora === "number";
-        if (e.estado === "in") {
-          if (temPlacar && !j.placar) {
-            j.placar = e.placarCasa + " × " + e.placarFora;
-            j.placarCasa = e.placarCasa;
-            j.placarFora = e.placarFora;
+        var invertido = !(casaTime(j.casa, e.casa) && casaTime(j.fora, e.fora));
+        var pcNum = invertido ? e.placarFora : e.placarCasa;
+        var pfNum = invertido ? e.placarCasa : e.placarFora;
+        var logoCasa = invertido ? e.foraLogo : e.casaLogo;
+        var logoFora = invertido ? e.casaLogo : e.foraLogo;
+        if (logoCasa) j.casaLogo = logoCasa;
+        if (logoFora) j.foraLogo = logoFora;
+        var temPlacar = typeof pcNum === "number" && typeof pfNum === "number";
+        if (e.estado === "in" || e.estado === "post") {
+          if (temPlacar) {
+            j.placar = pcNum + " × " + pfNum;
+            j.placarCasa = pcNum;
+            j.placarFora = pfNum;
           }
-          if (e.resumo && e.resumo.toLowerCase().indexOf("sched") === -1) j.tempo = e.resumo;
-          j.estado = "in";
-        } else if (e.estado === "post") {
-          if (temPlacar && !j.placar) {
-            j.placar = e.placarCasa + " × " + e.placarFora;
-            j.placarCasa = e.placarCasa;
-            j.placarFora = e.placarFora;
-          }
-          if (e.resumo) j.tempo = e.resumo;
-          j.estado = "post";
+          if (e.resumo && (e.estado === "post" || e.resumo.toLowerCase().indexOf("sched") === -1)) j.tempo = e.resumo;
+          j.estado = e.estado;
         }
       });
       return lista;
@@ -314,7 +345,7 @@ var SaimoJogosEspn = (function () {
     var c = cacheFichas[j.espnId];
     var agora = Date.now();
     if (c && agora - c.quando < TTL_FICHA) return Promise.resolve(c.ficha);
-    var url = SCORE_BASE + j.ligaSlug + "/summary?event=" + j.espnId;
+    var url = urlEsporte(j.ligaSlug, "summary?event=" + j.espnId);
     return pegar(url).then(function (sm) {
       var ficha = null;
       try {
@@ -397,7 +428,8 @@ var SaimoJogosEspn = (function () {
     if (!pendentes.length) return Promise.resolve(rotular(grupos));
     var promessas = pendentes.map(function (i) {
       var ch = offset + "|" + LIGAS[i].slug;
-      return pegar(SCORE_BASE + LIGAS[i].slug + "/scoreboard?dates=" + data).then(function (dados) {
+      var endereco = LIGAS[i].quadro ? ESPORTE + LIGAS[i].slug + "/scoreboard?dates=" + data : SCORE_BASE + LIGAS[i].slug + "/scoreboard?dates=" + data;
+      return pegar(endereco).then(function (dados) {
         var eventos = (dados && dados.events) || [];
         var jogos = [];
         for (var k = 0; k < eventos.length; k++) {

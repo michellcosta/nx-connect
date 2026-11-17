@@ -5,14 +5,16 @@ function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { 
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 /**
- * Guia 6 h: JSON magro no Pages (nx-conexao), cache local, scrape só se faltar.
- * Sem baixar XMLTV de 16 MB na TV.
+ * Guia do Saimo (canais-saimo/epg.json): slugs do Guia da TV e códigos
+ * do Meu Guia, já montados. nx-conexao fica só se esse arquivo falhar.
  */
 var SaimoEpg = {
   JANELA: 6 * 3600 * 1000,
   TTL: 6 * 3600 * 1000,
   MAX_PAR: 2,
   LOCAL: "vod/epg.json",
+  GUIA: "https://canais-saimo.pages.dev/guia.txt",
+  SAIMO: "https://canais-saimo.pages.dev/epg.json",
   NUVEM: "https://nx-conexao.pages.dev/epg.json",
   PROXY: "https://saimo-webos.gabrielsaimo68.workers.dev",
   PROXY_HOSTS: {
@@ -24,6 +26,8 @@ var SaimoEpg = {
   CACHE_KEY: "saimo_epg_cache",
   CACHE_AT: "saimo_epg_cache_em",
   byName: Object.create(null),
+  guiaSlugs: Object.create(null),
+  guiaCodes: Object.create(null),
   vistoXtream: Object.create(null),
   falhou: Object.create(null),
   visto: Object.create(null),
@@ -416,9 +420,41 @@ var SaimoEpg = {
     var n = this.norm(nome);
     return /^(a fazenda|amazon prime|prime video|apple tv|appletv|disney|cine sky|dazn|caze|goat|campeonato|eventos extras|formula 1|ufc|onefootball|nba league|hbo max|max(?:\s|$))/.test(n) || /\bsinal\s+\d/.test(n);
   },
+  aplicarGuia: function aplicarGuia(texto) {
+    if (!texto) return false;
+    var linhas = String(texto).split("\n");
+    var n = 0;
+    var i;
+    for (i = 0; i < linhas.length; i++) {
+      var linha = linhas[i];
+      if (!linha || linha.charAt(0) === "#") continue;
+      var cols = linha.split("\t");
+      if (cols.length < 3) continue;
+      var tipo = cols[0];
+      var nome = String(cols[1] || "").replace(/^\s+|\s+$/g, "");
+      var valor = String(cols[2] || "").replace(/^\s+|\s+$/g, "");
+      if (!nome || !valor) continue;
+      if (tipo === "guiadetv") {
+        this.guiaSlugs[nome] = valor;
+        var nrm = this.norm(nome);
+        if (nrm) this.guiaSlugs[nrm] = valor;
+        n++;
+      } else if (tipo === "meuguia") {
+        this.guiaCodes[this.fold(nome)] = valor;
+        var nrmM = this.norm(nome);
+        if (nrmM) this.guiaCodes[nrmM] = valor;
+        n++;
+      }
+    }
+    if (n && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "guia.txt: " + n + " nomes");
+    return n > 0;
+  },
   slug: function slug(name) {
     var n = this.norm(name);
     n = n.replace(/^(tv|canal|rede|br)\s+/, "");
+    if (this.guiaSlugs[n]) return this.guiaSlugs[n];
+    var dobrado = this.fold(name);
+    if (this.guiaSlugs[dobrado]) return this.guiaSlugs[dobrado];
     if (this.slugs[n]) return this.slugs[n];
     if (this.slugs[this.fold(name)]) return this.slugs[this.fold(name)];
     var noNum = n.replace(/\s+\d{1,2}$/, "");
@@ -435,6 +471,8 @@ var SaimoEpg = {
   },
   codeMeuguia: function codeMeuguia(name) {
     var n = this.norm(name);
+    if (this.guiaCodes[n]) return this.guiaCodes[n];
+    if (this.guiaCodes[this.fold(name)]) return this.guiaCodes[this.fold(name)];
     if (this.meuguiaCodes[n]) return this.meuguiaCodes[n];
     if (this.meuguiaCodes[this.fold(name)]) return this.meuguiaCodes[this.fold(name)];
     var marca = this.marcaSlug(n);
@@ -1045,6 +1083,53 @@ var SaimoEpg = {
       }, _callee4);
     }))();
   },
+  /* epg.json do Saimo: g = slug do Guia da TV, m = código do Meu Guia.
+     Horários em segundos. A sinopse só vem no g. */
+  programasCentrais: function programasCentrais(lista, comSinopse) {
+    var out = [];
+    var i;
+    for (i = 0; i < (lista || []).length; i++) {
+      var row = lista[i];
+      if (!row || row.length < 3) continue;
+      var titulo = String(row[2] || "").replace(/^\s+|\s+$/g, "");
+      var ini = Number(row[0]) * 1000;
+      var fim = Number(row[1]) * 1000;
+      if (!titulo || !ini || !fim) continue;
+      var p = {
+        title: titulo,
+        desc: "",
+        start: ini,
+        stop: fim
+      };
+      if (comSinopse && row[3]) p.desc = String(row[3]);
+      out.push(p);
+    }
+    return out;
+  },
+  aplicarCentral: function aplicarCentral(data) {
+    if (!data || !data.g && !data.m) return false;
+    var n = 0;
+    var g = data.g || {};
+    var slug;
+    for (slug in g) {
+      if (!Object.prototype.hasOwnProperty.call(g, slug)) continue;
+      var listaG = this.programasCentrais(g[slug], true);
+      if (!listaG.length) continue;
+      this.byName["@" + slug] = listaG;
+      n++;
+    }
+    var m = data.m || {};
+    var code;
+    for (code in m) {
+      if (!Object.prototype.hasOwnProperty.call(m, code)) continue;
+      var listaM = this.programasCentrais(m[code], false);
+      if (!listaM.length) continue;
+      this.byName["m:" + code] = listaM;
+      n++;
+    }
+    if (n && window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "epg saimo: " + n + " grades");
+    return n > 0;
+  },
   aplicarJson: function aplicarJson(data) {
     var _this8 = this;
     var t0 = Date.now();
@@ -1079,12 +1164,21 @@ var SaimoEpg = {
     var self = this;
     if (this.loaded) return Promise.resolve();
     if (this.loading) return this.loading;
-    this.loading = this.lerArquivoJson(this.NUVEM, 15000).then(function (remoto) {
-      if (remoto && remoto.channels && Object.keys(remoto.channels).length) {
-        self.aplicarJson(remoto);
-        return true;
-      }
-      return false;
+    this._central = null;
+    this.loading = this.buscarComLimite(this.GUIA, 8000).then(function (txt) {
+      self.aplicarGuia(txt);
+    }).catch(function () {}).then(function () {
+      return self.lerArquivoJson(self.SAIMO, 15000);
+    }).then(function (data) {
+      self._central = data;
+      if (self.aplicarCentral(data)) return true;
+      return self.lerArquivoJson(self.NUVEM, 15000).then(function (remoto) {
+        if (remoto && remoto.channels && Object.keys(remoto.channels).length) {
+          self.aplicarJson(remoto);
+          return true;
+        }
+        return false;
+      });
     }).catch(function () {
       return false;
     }).then(function (ok) {
@@ -1098,12 +1192,20 @@ var SaimoEpg = {
       if (local && local.channels && Object.keys(local.channels).length) self.aplicarJson(local);
     }).catch(function () {}).then(function () {
       self.lerCache();
+      /* O cache e o arquivo local gravam por nome e podem cobrir o @slug.
+         O guia do Saimo volta por cima. */
+      if (self._central) self.aplicarCentral(self._central);
       self.loaded = true;
     });
     return this.loading;
   },
   listaLocal: function listaLocal(nome) {
     var n = this.norm(nome);
+    var s0 = this.slug(nome);
+    if (s0 && this.byName["@" + s0] && this.byName["@" + s0].length) {
+      var porSlug = this.filtrar(this.byName["@" + s0]);
+      if (porSlug.length) return porSlug;
+    }
     var list = this.filtrar(this.byName[n] || []);
     if (list.length) return list;
     var n2 = n.replace(/^(tv|canal|rede|br)\s+/, "");
@@ -1119,6 +1221,11 @@ var SaimoEpg = {
     var compact = (n2 || n).replace(/ /g, "");
     if (compact) {
       list = this.filtrar(this.byName["#" + compact] || []);
+      if (list.length) return list;
+    }
+    var code = this.codeMeuguia(nome);
+    if (code && this.byName["m:" + code] && this.byName["m:" + code].length) {
+      list = this.filtrar(this.byName["m:" + code]);
       if (list.length) return list;
     }
     return [];
