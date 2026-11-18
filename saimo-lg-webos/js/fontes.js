@@ -97,8 +97,10 @@ var SaimoFontesLive = {
     if (u.indexOf("/offline") !== -1) return true;
     if (/\.mpd(\?|$)/.test(u)) return true;
     var temCabecalho = !!(fonte && (fonte.referer || fonte.agent || fonte.agente));
-    // error.txt sem cabeçalho é página de erro. Com Referer, o site toca e o proxy manda o cabeçalho.
-    if (u.indexOf("error.txt") !== -1 && !temCabecalho) return true;
+    // error.txt sem cabeçalho costuma ser página de erro. O EmbedTV
+    // (cloudfront-net.lat) publica a playlist com esse nome e ela abre direto,
+    // com CORS liberado — é a fonte que o site usa no SporTV.
+    if (u.indexOf("error.txt") !== -1 && !temCabecalho && u.indexOf("cloudfront-net.lat") === -1) return true;
     var h = this.hostDe(url);
     if (!h) return false;
     if (this.bloqueadosPeloUsuario().some(function (m) {

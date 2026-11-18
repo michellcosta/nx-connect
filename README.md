@@ -45,7 +45,7 @@ npm install -g @webosose/ares-cli
 ares-install-setup
 
 # instalar
-ares-install com.saimo.tv_2.1.1_all.ipk
+ares-install com.saimo.tv_2.1.2_all.ipk
 ```
 
 ---

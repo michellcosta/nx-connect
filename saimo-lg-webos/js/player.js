@@ -428,7 +428,8 @@ var SaimoPlayer = /*#__PURE__*/function () {
       }
     } else if (!viaProxy && !nativo && !this._tentouNativo && this.decoderDaTv() && this.ehHls(source.url)) {
       var prefHls = this.engineParaHost(this.hostDaFonte(source));
-      if (prefHls === "hls") {
+      var embedTv = String(source.url || "").indexOf("cloudfront-net.lat") !== -1;
+      if (prefHls === "hls" || embedTv) {
         nativo = false;
         this._tentouNativo = true;
       } else {
@@ -676,7 +677,14 @@ var SaimoPlayer = /*#__PURE__*/function () {
       return;
     }
 
-    // Ao vivo fica em TS. HLS só no VOD.
+    // Playlist ao vivo que o decodificador da TV recusou: o hls.js baixa os
+    // pedaços direto. O EmbedTV (SporTV) entrega MPEG-TS com nome .png.
+    if (this.isLive && this._nativo && !this._tentouHls && atual && this.ehHls(atual.url) && window.Hls && Hls.isSupported()) {
+      this._trocando = false;
+      this.showStatus("Fonte " + (this.currentSourceIndex + 1) + " · hls…");
+      this.playChannel(this.currentChannel, this.currentSourceIndex, 0, false, false);
+      return;
+    }
     var nextIndex = this.proximoIndice(this.currentSourceIndex + 1);
     if (this.ehXtream() && nextIndex >= 0) {
       this._trocando = false;
