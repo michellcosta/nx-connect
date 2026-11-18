@@ -109,6 +109,78 @@ var SaimoPlayer = /*#__PURE__*/function () {
     if (this.isLive || !this.video || !(this.video.duration > 0) || !this.callbacks.onProgress) return;
     this.callbacks.onProgress(this.currentChannel, this.video.currentTime, this.video.duration);
   };
+  _proto.hexParaB64url = function hexParaB64url(hex) {
+    var limpo = String(hex || "").replace(/[^0-9a-fA-F]/g, "");
+    if (!limpo || limpo.length % 2) return "";
+    var bin = "";
+    var i;
+    for (i = 0; i < limpo.length; i += 2) bin += String.fromCharCode(parseInt(limpo.substr(i, 2), 16));
+    try {
+      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    } catch (e) {
+      return "";
+    }
+  };
+  _proto.bytesJson = function bytesJson(obj) {
+    var s = JSON.stringify(obj);
+    var out = new Uint8Array(s.length);
+    var i;
+    for (i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 255;
+    return out;
+  };
+  _proto.limparChave = function limparChave() {
+    if (this._ouvirChave && this.video) {
+      try { this.video.removeEventListener("encrypted", this._ouvirChave); } catch (e0) {}
+    }
+    this._ouvirChave = null;
+    if (this._chaveArmada && this.video && this.video.setMediaKeys) {
+      this._chaveArmada = false;
+      try { this.video.setMediaKeys(null); } catch (e1) {}
+    }
+  };
+  /* ClearKey do catalogo (chave: KID:CHAVE). Sem a chave a fonte protegida não abre. */
+  _proto.prepararChave = function prepararChave(video, source) {
+    var kid = source && source.keyId;
+    var key = source && source.key;
+    this.limparChave();
+    if (!kid || !key || !video || !navigator.requestMediaKeySystemAccess) return;
+    var kidB = this.hexParaB64url(kid);
+    var keyB = this.hexParaB64url(key);
+    if (!kidB || !keyB) return;
+    var self = this;
+    var gen = this._playGen;
+    var pronto = navigator.requestMediaKeySystemAccess("org.w3.clearkey", [{
+      initDataTypes: ["cenc", "keyids"],
+      videoCapabilities: [{ contentType: "video/mp4; codecs=\"avc1.42E01E\"" }, { contentType: "video/mp4" }]
+    }]).then(function (access) {
+      return access.createMediaKeys();
+    }).then(function (mediaKeys) {
+      if (self._playGen !== gen) return null;
+      self._chaveArmada = true;
+      return video.setMediaKeys(mediaKeys).then(function () { return mediaKeys; });
+    }).catch(function () { return null; });
+    this._ouvirChave = function (ev) {
+      if (self._playGen !== gen) return;
+      try { video.removeEventListener("encrypted", self._ouvirChave); } catch (e2) {}
+      self._ouvirChave = null;
+      pronto.then(function (mediaKeys) {
+        if (!mediaKeys || self._playGen !== gen) return;
+        try {
+          var session = mediaKeys.createSession();
+          session.addEventListener("message", function () {
+            try {
+              session.update(self.bytesJson({
+                keys: [{ kty: "oct", kid: kidB, k: keyB }],
+                type: "temporary"
+              }));
+            } catch (e3) {}
+          });
+          session.generateRequest(ev.initDataType, ev.initData).catch(function () {});
+        } catch (e4) {}
+      });
+    };
+    video.addEventListener("encrypted", this._ouvirChave);
+  };
   _proto.getHlsConfig = function getHlsConfig() {
     var live = !!this.isLive;
     var segura = live && this._fonteTocou;
@@ -342,6 +414,8 @@ var SaimoPlayer = /*#__PURE__*/function () {
       this.showStatus("Nenhuma fonte disponível.");
       return;
     }
+    if (source.keyId && source.key) this.prepararChave(this.video, source);
+    else this.limparChave();
 
     // 1ª fonte /play/ no PC = HLS. mpegts só na fonte TS (/ts ou /live/*.ts).
     if (this.isLive && this.ehStreamTs(source.url) && !this.ehHls(source.url)) {
@@ -482,6 +556,7 @@ var SaimoPlayer = /*#__PURE__*/function () {
     } else if (!usarNativo) {
       this._abrindo = false;
       var cfgHls = this.getHlsConfig();
+      if (source.keyId && source.key) cfgHls.emeEnabled = false;
       if (!this.decoderDaTv() && window.SaimoAPI && SaimoAPI.proxyUrl) {
         var origemPlay = source && source.url || "";
         var encaminharHls = function (xhr, u) {

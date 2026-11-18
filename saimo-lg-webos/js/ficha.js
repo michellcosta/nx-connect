@@ -213,23 +213,24 @@ var SaimoFicha = {
   indexarViaWorker: function indexarViaWorker(text) {
     var self = this;
     return new Promise(function (resolve, reject) {
+      /* Chrome 38 (webOS 3) rejeita function declarada dentro de try. */
+      var vigilante = null;
+      function rearmar() {
+        if (vigilante) clearTimeout(vigilante);
+        vigilante = setTimeout(function () {
+          if (self._indexWorker) {
+            self._indexWorker.terminate();
+            self._indexWorker = null;
+          }
+          reject(new Error("worker sem resposta"));
+        }, 90000);
+      }
       try {
         if (!self._indexWorker) {
           self._indexWorker = new Worker("js/ficha-index-worker.js?v=xt138");
         }
         var w = self._indexWorker;
         var reqId = ++self._indexReqId;
-        var vigilante = null;
-        function rearmar() {
-          if (vigilante) clearTimeout(vigilante);
-          vigilante = setTimeout(function () {
-            if (self._indexWorker) {
-              self._indexWorker.terminate();
-              self._indexWorker = null;
-            }
-            reject(new Error("worker sem resposta"));
-          }, 90000);
-        }
         rearmar();
         var handler = function (ev) {
           var d = ev.data || {};

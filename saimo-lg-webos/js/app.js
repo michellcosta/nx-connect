@@ -1137,7 +1137,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         var s = document.createElement("script");
-        s.src = "js/xtream.js?v=xt73";
+        s.src = "js/xtream.js?v=xt139";
         s.onload = function () {
           resolve(!!(window.SaimoXtream && SaimoXtream.login));
         };
@@ -1772,6 +1772,13 @@ document.addEventListener("DOMContentLoaded", function () {
       var tipo = item.type === "series" ? "series" : "movie";
       return lookupVod(item.title, tipo);
     }
+    function tituloComAno(item) {
+      var t = String(item && (item.title || item.name) || "").replace(/^\s+|\s+$/g, "");
+      var y = String(item && item.year || "").replace(/\D/g, "");
+      if (y.length >= 4) y = y.slice(0, 4);
+      if (y.length === 4 && !/\(\d{4}\)\s*$/.test(t)) t = t + " (" + y + ")";
+      return t;
+    }
     function resolverFontesFilme(_x) {
       return _resolverFontesFilme.apply(this, arguments);
     }
@@ -1802,7 +1809,7 @@ document.addEventListener("DOMContentLoaded", function () {
             case 2:
               visto[L] = 1;
               _context3.n = 3;
-              return SaimoAPI.resolveMovieStreams(item.title, L);
+              return SaimoAPI.resolveMovieStreams(tituloComAno(item), L);
             case 3:
               sources = _context3.v;
               if (!(sources && sources.length)) {
@@ -1851,7 +1858,7 @@ document.addEventListener("DOMContentLoaded", function () {
             case 2:
               visto[L] = 1;
               _context4.n = 3;
-              return SaimoAPI.resolveSeriesEpisodes(item.title, L);
+              return SaimoAPI.resolveSeriesEpisodes(tituloComAno(item), L);
             case 3:
               eps = _context4.v;
               if (!(eps && eps.length)) {
@@ -6952,11 +6959,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 browseZone = "hub";
                 browseCol = manterFoco ? browseCol : 0;
                 updateBrowseFocus();
-                function refreshHub() {
+                /* function declarada dentro do if quebra o Chrome 38 (webOS 3). */
+                var refreshHub = function () {
                   if (seq !== browseSeq || browseKind !== "ondemand") return;
                   hubCapasCache = Object.create(null);
                   pedirPintarHub();
-                }
+                };
                 garantirLancamentosFilmesMenu("ondemand");
                 carregarAcervo().then(function () {
                   quandoOcioso(refreshHub);

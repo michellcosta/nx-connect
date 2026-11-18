@@ -143,16 +143,26 @@ var SaimoXtream = (function () {
   }
 
   function xhrTextoCedo(url, callback, jaProxy) {
+    /* Chrome 38 (webOS 3) rejeita function declarada dentro de try. */
+    var x;
+    var acabou = false;
+    function fim(err, text) {
+      if (acabou) return;
+      acabou = true;
+      callback(err, text || '');
+    }
+    function tentar() {
+      var prox = !jaProxy ? urlViaProxy(url) : '';
+      if (prox && prox !== url) {
+        xhrTextoCedo(prox, callback, true);
+        return;
+      }
+      fim(new Error('m3u'), '');
+    }
     try {
-      var x = new XMLHttpRequest();
+      x = new XMLHttpRequest();
       x.open('GET', url, true);
       x.timeout = 20000;
-      var acabou = false;
-      function fim(err, text) {
-        if (acabou) return;
-        acabou = true;
-        callback(err, text || '');
-      }
       x.onprogress = function () {
         var t = x.responseText || '';
         if (t.indexOf('http://') !== -1 || t.indexOf('https://') !== -1) {
@@ -170,14 +180,6 @@ var SaimoXtream = (function () {
       };
       x.onerror = function () { tentar(); };
       x.ontimeout = function () { tentar(); };
-      function tentar() {
-        var prox = !jaProxy ? urlViaProxy(url) : '';
-        if (prox && prox !== url) {
-          xhrTextoCedo(prox, callback, true);
-          return;
-        }
-        fim(new Error('m3u'), '');
-      }
       x.send();
     } catch (e) {
       callback(e, '');
@@ -185,18 +187,19 @@ var SaimoXtream = (function () {
   }
 
   function xhrTexto(url, timeoutMs, callback, jaTentouProxy, onProg) {
+    var x;
+    function tentarProxy(motivo) {
+      var prox = !jaTentouProxy ? urlViaProxy(url) : '';
+      if (prox && prox !== url) {
+        xhrTexto(prox, timeoutMs, callback, true, onProg);
+        return;
+      }
+      callback(new Error(motivo), '');
+    }
     try {
-      var x = new XMLHttpRequest();
+      x = new XMLHttpRequest();
       x.open('GET', url, true);
       x.timeout = timeoutMs || 60000;
-      function tentarProxy(motivo) {
-        var prox = !jaTentouProxy ? urlViaProxy(url) : '';
-        if (prox && prox !== url) {
-          xhrTexto(prox, timeoutMs, callback, true, onProg);
-          return;
-        }
-        callback(new Error(motivo), '');
-      }
       x.onprogress = function () {
         if (onProg) onProg(x.loaded || 0, x.total || 0);
       };
@@ -492,18 +495,19 @@ var SaimoXtream = (function () {
     return msg;
   }
   function xhrJSON(url, timeoutMs, callback, jaTentouProxy, onProg) {
+    var x;
+    function tentarProxy(motivo) {
+      var prox = !jaTentouProxy ? urlViaProxy(url) : '';
+      if (prox && prox !== url) {
+        xhrJSON(prox, timeoutMs, callback, true, onProg);
+        return;
+      }
+      callback(new Error(motivo));
+    }
     try {
-      var x = new XMLHttpRequest();
+      x = new XMLHttpRequest();
       x.open('GET', url, true);
       x.timeout = timeoutMs || 15000;
-      function tentarProxy(motivo) {
-        var prox = !jaTentouProxy ? urlViaProxy(url) : '';
-        if (prox && prox !== url) {
-          xhrJSON(prox, timeoutMs, callback, true, onProg);
-          return;
-        }
-        callback(new Error(motivo));
-      }
       if (onProg && x.addEventListener) {
         x.addEventListener('progress', function (ev) {
           if (!ev) return;

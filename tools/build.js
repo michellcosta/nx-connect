@@ -60,6 +60,40 @@ console.log('--- Pronto: ' + files.length + ' de src/, ' + transCount + ' transp
    APIs de runtime sem polyfill também param o build (lista abaixo).
    polyfills.js é o único lugar onde elas podem aparecer (define os shims). */
 var acorn = require('acorn');
+
+/* FunctionDeclaration só pode ser filha do programa ou do corpo de outra
+   function. Dentro de if/try/for/switch o Chrome 38 aborta o arquivo. */
+function funcoesEmBloco(ast) {
+  var achados = [];
+  function walk(node, parent, gp) {
+    if (!node || typeof node.type !== 'string') return;
+    if (node.type === 'FunctionDeclaration') {
+      var corpo = parent && parent.type === 'BlockStatement' && gp &&
+        (gp.type === 'FunctionDeclaration' || gp.type === 'FunctionExpression' || gp.type === 'ArrowFunctionExpression');
+      var legal = (parent && parent.type === 'Program') || corpo;
+      if (!legal) {
+        var nome = (node.id && node.id.name) || '(sem nome)';
+        var linha = node.loc && node.loc.start && node.loc.start.line;
+        achados.push(nome + (linha ? ' linha ' + linha : ''));
+      }
+    }
+    var chaves = Object.keys(node);
+    for (var i = 0; i < chaves.length; i++) {
+      var k = chaves[i];
+      if (k === 'type' || k === 'start' || k === 'end' || k === 'loc' || k === 'range') continue;
+      var v = node[k];
+      if (Array.isArray(v)) {
+        for (var j = 0; j < v.length; j++) {
+          if (v[j] && typeof v[j].type === 'string') walk(v[j], node, parent);
+        }
+      } else if (v && typeof v.type === 'string') {
+        walk(v, node, parent);
+      }
+    }
+  }
+  walk(ast, null, null);
+  return achados;
+}
 var PULAR_ES5 = { 'polyfills.js': 1, 'hls.min.js': 1, 'mpegts.min.js': 1, 'versao.js': 1 };
 var APIS_SEM_POLYFILL = [
   ['.replaceAll(', '85'],
@@ -80,12 +114,20 @@ var problemas = 0;
 for (var v = 0; v < arquivosJs.length; v++) {
   var nomeArq = arquivosJs[v];
   var codigoArq = fs.readFileSync(path.join(JS_DIR, nomeArq), 'utf8');
+  var astEs5;
   try {
-    acorn.parse(codigoArq, { ecmaVersion: 5 });
+    astEs5 = acorn.parse(codigoArq, { ecmaVersion: 5, locations: true });
   } catch (errEs5) {
     console.error('[ES5] ' + nomeArq + ': sintaxe acima de ES5 -> ' + errEs5.message);
     problemas++;
     continue;
+  }
+  /* Chrome 38 (webOS 3), em "use strict", recusa function declarada dentro
+     de if/for/try/switch. O script inteiro não carrega. Acorn aceita. */
+  var funBloco = funcoesEmBloco(astEs5);
+  for (var fb = 0; fb < funBloco.length; fb++) {
+    console.error('[ES5] ' + nomeArq + ': function dentro de bloco (Chrome 38) -> ' + funBloco[fb]);
+    problemas++;
   }
   for (var a = 0; a < APIS_SEM_POLYFILL.length; a++) {
     if (codigoArq.indexOf(APIS_SEM_POLYFILL[a][0]) >= 0) {

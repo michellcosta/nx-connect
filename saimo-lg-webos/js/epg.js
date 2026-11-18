@@ -5,8 +5,8 @@ function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { 
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
 function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 /**
- * Guia do Saimo (canais-saimo/epg.json): slugs do Guia da TV e códigos
- * do Meu Guia, já montados. nx-conexao fica só se esse arquivo falhar.
+ * Guia do Saimo: epg-leve.json (horário pronto). epg.json e a nuvem
+ * ficam só se esse arquivo falhar.
  */
 var SaimoEpg = {
   JANELA: 6 * 3600 * 1000,
@@ -14,6 +14,7 @@ var SaimoEpg = {
   MAX_PAR: 2,
   LOCAL: "vod/epg.json",
   GUIA: "https://canais-saimo.pages.dev/guia.txt",
+  LEVE: "https://canais-saimo.pages.dev/epg-leve.json",
   SAIMO: "https://canais-saimo.pages.dev/epg.json",
   NUVEM: "https://nx-conexao.pages.dev/epg.json",
   PROXY: "https://saimo-webos.gabrielsaimo68.workers.dev",
@@ -725,6 +726,7 @@ var SaimoEpg = {
     return url;
   },
   buscarComLimite: function buscarComLimite(url, ms) {
+    if (window.SaimoAPI && SaimoAPI.urlFresca) url = SaimoAPI.urlFresca(url);
     var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     var timer = 0;
     var estouro = new Promise(function (_, reject) {
@@ -1168,8 +1170,16 @@ var SaimoEpg = {
     this.loading = this.buscarComLimite(this.GUIA, 8000).then(function (txt) {
       self.aplicarGuia(txt);
     }).catch(function () {}).then(function () {
+      return self.lerArquivoJson(self.LEVE, 20000);
+    }).then(function (leve) {
+      if (leve && self.aplicarCentral(leve)) {
+        self._central = leve;
+        if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "epg leve");
+        return true;
+      }
       return self.lerArquivoJson(self.SAIMO, 15000);
     }).then(function (data) {
+      if (data === true) return true;
       self._central = data;
       if (self.aplicarCentral(data)) return true;
       return self.lerArquivoJson(self.NUVEM, 15000).then(function (remoto) {

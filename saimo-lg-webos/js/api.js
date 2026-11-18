@@ -23,11 +23,48 @@ var SaimoAPI = {
   _destaquesCache: null,
   _letrasFilmes: null,
   tmdbPosterBase: "https://image.tmdb.org/t/p/w342",
+  _seloCatalogo: "",
+  /* A TV guarda o GET antigo. Um selo por abertura pega o arquivo que o Saimo
+     publicou agora e reaproveita o mesmo download no resto da sessão. */
+  urlFresca: function urlFresca(url) {
+    var u = String(url || "");
+    if (u.indexOf("http://") !== 0 && u.indexOf("https://") !== 0) return u;
+    if (!this._seloCatalogo) this._seloCatalogo = String(Date.now());
+    if (/[?&]v=/.test(u)) return u;
+    return u + (u.indexOf("?") >= 0 ? "&" : "?") + "v=" + this._seloCatalogo;
+  },
+  baseDoIndice: function baseDoIndice(id) {
+    var chave = String(id);
+    if (this.bases && this.bases[chave]) return this.bases[chave];
+    var n = parseInt(chave, 10);
+    if (!isNaN(n) && this.bases && this.bases[n]) return this.bases[n];
+    var g = window.SAIMO_VOD_BASES;
+    if (g && g[chave]) return g[chave];
+    if (!isNaN(n) && g && g[n]) return g[n];
+    return "";
+  },
+  nomeIgualCanal: function nomeIgualCanal(s) {
+    var k = String(s || "").replace(/&amp;/g, "&").replace(/&#38;/g, "&");
+    try {
+      k = k.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    } catch (e) {}
+    k = k.toLowerCase().replace(/\s*\([^)]*\)\s*$/g, " ");
+    return k.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  },
+  urlArquivoCanais: function urlArquivoCanais(nome) {
+    var u = String(this.urlCatalogoCanais() || "");
+    var i = u.lastIndexOf("/");
+    if (i < 0) return "";
+    return u.slice(0, i + 1) + nome;
+  },
   /**
-   * Parse do catalogo.txt para TV Ao Vivo
+   * Parse do catalogo.txt para TV Ao Vivo.
+   * canais.txt é M3U: entra pelo mesmo parse.
    */
   parseCatalogo: function parseCatalogo(text) {
-    var lines = text.split("\n");
+    var bruto = String(text || "").replace(/^\uFEFF/, "");
+    if (bruto.replace(/^\s+/, "").indexOf("#EXTM3U") === 0) return this.parseM3uCanais(bruto);
+    var lines = bruto.split("\n");
     var channels = [];
     var categoriesSet = new Set(["Todos"]);
     var currentChannel = null;
@@ -71,6 +108,18 @@ var SaimoAPI = {
         currentSource.referer = value;
       } else if (key === "agente" && currentSource) {
         currentSource.agent = value;
+      } else if (key === "chave" && currentChannel && currentChannel.sources.length) {
+        /* KID:CHAVE. Sem os dois a fonte protegida não abre; tirá-la evita
+           uma tentativa que só falha. */
+        var partesChave = value.split(":");
+        if (partesChave.length === 2 && partesChave[0].trim() && partesChave[1].trim()) {
+          currentSource = currentChannel.sources[currentChannel.sources.length - 1];
+          currentSource.keyId = partesChave[0].trim();
+          currentSource.key = partesChave[1].trim();
+        } else {
+          currentChannel.sources.pop();
+          currentSource = currentChannel.sources.length ? currentChannel.sources[currentChannel.sources.length - 1] : null;
+        }
       }
     }
     if (currentChannel && currentChannel.sources.length > 0) {
@@ -80,6 +129,137 @@ var SaimoAPI = {
       channels: channels,
       categories: Array.from(categoriesSet)
     };
+  },
+  parseM3uCanais: function parseM3uCanais(text) {
+    var lines = String(text || "").split("\n");
+    var porNome = Object.create(null);
+    var ordem = [];
+    var categoriesSet = { Todos: 1 };
+    var nome = "";
+    var logo = "";
+    var grupo = "";
+    var i;
+    for (i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/^\s+|\s+$/g, "");
+      if (!line || line === "#EXTM3U") continue;
+      if (line.indexOf("#EXTINF:") === 0) {
+        var idM = line.match(/tvg-id="([^"]*)"/);
+        var logoM = line.match(/tvg-logo="([^"]*)"/);
+        var grupoM = line.match(/group-title="([^"]*)"/);
+        logo = logoM ? logoM[1] : "";
+        grupo = grupoM ? grupoM[1] : "";
+        var cru = "";
+        if (idM && idM[1].replace(/^\s+|\s+$/g, "")) cru = idM[1];
+        else {
+          var virgula = line.lastIndexOf(",");
+          cru = virgula >= 0 ? line.slice(virgula + 1) : "";
+        }
+        nome = cru.replace(/&amp;/g, "&").replace(/\s*\([^)]*\)\s*$/g, "").replace(/^\s+|\s+$/g, "");
+        continue;
+      }
+      if (line.charAt(0) === "#" || !nome) continue;
+      var chave = this.nomeIgualCanal(nome);
+      if (!chave) continue;
+      var canal = porNome[chave];
+      if (!canal) {
+        var cat = grupo || "Geral";
+        canal = {
+          type: "channel",
+          name: nome,
+          category: cat,
+          logo: logo,
+          sources: []
+        };
+        porNome[chave] = canal;
+        ordem.push(chave);
+        categoriesSet[cat] = 1;
+      }
+      if (!canal.logo && logo) canal.logo = logo;
+      canal.sources.push({
+        url: line,
+        quality: "Automática",
+        referer: "",
+        agent: ""
+      });
+      nome = "";
+      logo = "";
+      grupo = "";
+    }
+    var channels = [];
+    var cats = ["Todos"];
+    var c;
+    for (c in categoriesSet) {
+      if (c !== "Todos" && Object.prototype.hasOwnProperty.call(categoriesSet, c)) cats.push(c);
+    }
+    for (i = 0; i < ordem.length; i++) {
+      if (porNome[ordem[i]].sources.length) channels.push(porNome[ordem[i]]);
+    }
+    return { channels: channels, categories: cats };
+  },
+  mesclarCatalogos: function mesclarCatalogos(base, extra) {
+    var principal = base && base.channels ? base.channels : [];
+    var reservas = extra && extra.channels ? extra.channels : [];
+    if (!principal.length) return extra || base;
+    if (!reservas.length) return base;
+    var mapa = Object.create(null);
+    var i;
+    var c;
+    for (i = 0; i < reservas.length; i++) {
+      c = this.nomeIgualCanal(reservas[i].name);
+      if (c) mapa[c] = reservas[i];
+    }
+    var usados = Object.create(null);
+    var cats = {};
+    var out = [];
+    for (i = 0; i < principal.length; i++) {
+      var canal = principal[i];
+      var chave = this.nomeIgualCanal(canal.name);
+      var vindo = chave && mapa[chave];
+      if (vindo) {
+        usados[chave] = 1;
+        var visto = Object.create(null);
+        var j;
+        if (!canal.sources) canal.sources = [];
+        for (j = 0; j < canal.sources.length; j++) {
+          if (canal.sources[j] && canal.sources[j].url) visto[canal.sources[j].url] = 1;
+        }
+        for (j = 0; j < vindo.sources.length; j++) {
+          var url = vindo.sources[j] && vindo.sources[j].url;
+          if (!url || visto[url]) continue;
+          visto[url] = 1;
+          canal.sources.push(vindo.sources[j]);
+        }
+        if (!canal.logo && vindo.logo) canal.logo = vindo.logo;
+      }
+      if (canal.category) cats[canal.category] = 1;
+      out.push(canal);
+    }
+    for (i = 0; i < reservas.length; i++) {
+      c = this.nomeIgualCanal(reservas[i].name);
+      if (c && usados[c]) continue;
+      if (reservas[i].category) cats[reservas[i].category] = 1;
+      out.push(reservas[i]);
+    }
+    var categories = ["Todos"];
+    for (c in cats) {
+      if (Object.prototype.hasOwnProperty.call(cats, c) && c !== "Todos") categories.push(c);
+    }
+    return { channels: out, categories: categories };
+  },
+  juntarCanaisExtras: function juntarCanaisExtras(parsed) {
+    var self = this;
+    var url = this.urlArquivoCanais("canais.txt");
+    if (!url) return Promise.resolve(parsed);
+    return this.fetchTextUrl(url).then(function (txt) {
+      if (!txt || txt.length < 20) return parsed;
+      var extra = self.parseCatalogo(txt);
+      if (!extra.channels.length) return parsed;
+      if (window.SaimoDiagnostico) SaimoDiagnostico.logEvento("perf", "canais.txt: " + extra.channels.length);
+      if (!parsed || !parsed.channels || !parsed.channels.length) return extra;
+      return self.mesclarCatalogos(parsed, extra);
+    }).catch(function () {
+      return parsed;
+    });
   },
   /**
    * Carrega os canais ao vivo
@@ -111,8 +291,9 @@ var SaimoAPI = {
                       }, ms);
                       _context.p = 1;
                       _context.n = 2;
-                      return fetch(url, {
-                        signal: controller.signal
+                      return fetch(_this.urlFresca(url), {
+                        signal: controller.signal,
+                        cache: "no-store"
                       });
                     case 2:
                       res = _context.v;
@@ -171,7 +352,9 @@ var SaimoAPI = {
             });
         }
       }, _callee2);
-    }))();
+    }))().then(function (parsed) {
+      return _this.juntarCanaisExtras(parsed);
+    });
   },
   /**
    * O catálogo publicado de hoje, só do remoto (igual ao site). Quem chama
@@ -190,7 +373,7 @@ var SaimoAPI = {
             }, 6000);
             _context3.p = 1;
             _context3.n = 2;
-            return fetch(_this2.urlCatalogoCanais(), {
+            return fetch(_this2.urlFresca(_this2.urlCatalogoCanais()), {
               signal: controller.signal,
               cache: "no-store"
             });
@@ -220,7 +403,9 @@ var SaimoAPI = {
             return _context3.a(2);
         }
       }, _callee3, null, [[1, 5, 6, 7]]);
-    }))();
+    }))().then(function (parsed) {
+      return _this2.juntarCanaisExtras(parsed);
+    });
   },
   /**
    * Proxy da Saimo TV (igual ao site): manda o Referer e o User-Agent que
@@ -307,6 +492,10 @@ var SaimoAPI = {
       var xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
       xhr.timeout = 20000;
+      if (url.indexOf("http://") === 0 || url.indexOf("https://") === 0) {
+        try { xhr.setRequestHeader("Cache-Control", "no-cache"); } catch (eH) {}
+        try { xhr.setRequestHeader("Pragma", "no-cache"); } catch (eH2) {}
+      }
       xhr.onload = function () {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(xhr.responseText || "");
@@ -335,6 +524,7 @@ var SaimoAPI = {
   },
   fetchTextUrl: function fetchTextUrl(url) {
     var _this4 = this;
+    url = this.urlFresca(url);
     return _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
       var xhrHit, res, _t4;
       return _regenerator().w(function (_context5) {
@@ -530,10 +720,22 @@ var SaimoAPI = {
   normTituloVod: function normTituloVod(t) {
     return String(t || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s*\(\d{4}\)\s*$/g, "").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
   },
+  anoDoTitulo: function anoDoTitulo(t) {
+    var m = String(t || "").trim().match(/\((\d{4})\)\s*$/);
+    return m ? m[1] : "";
+  },
   titulosVodIguais: function titulosVodIguais(a, b) {
     var x = this.normTituloVod(a);
     var y = this.normTituloVod(b);
     return !!(x && y && x === y);
+  },
+  /* O ano faz parte do filme. Obsessão (2026) não pode abrir o arquivo de 2019. */
+  casaTituloVod: function casaTituloVod(linha, pedido) {
+    if (!this.titulosVodIguais(linha, pedido)) return false;
+    var anoPedido = this.anoDoTitulo(pedido);
+    if (!anoPedido) return true;
+    var anoLinha = this.anoDoTitulo(linha);
+    return !!anoLinha && anoLinha === anoPedido;
   },
   parseFontesDaLinhaFilme: function parseFontesDaLinhaFilme(cols) {
     var _this8 = this;
@@ -563,15 +765,38 @@ var SaimoAPI = {
   parseFilmeShard: function parseFilmeShard(text, title) {
     var want = this.normTituloVod(title);
     if (!want || !text) return [];
+    var anoPedido = this.anoDoTitulo(title);
     var lines = String(text).split("\n");
+    var semAno = null;
+    var maisNova = null;
+    var anoMaisNova = -1;
     for (var li = 0; li < lines.length; li++) {
       var cols = lines[li].split("\t");
       if (cols.length < 2) continue;
       if (!this.titulosVodIguais(cols[0], title)) continue;
       var sources = this.parseFontesDaLinhaFilme(cols);
-      if (sources.length) return sources;
+      if (!sources.length) continue;
+      var anoLinha = this.anoDoTitulo(cols[0]);
+      if (anoPedido && anoLinha === anoPedido) return sources;
+      if (anoPedido) {
+        if (!anoLinha && !semAno) semAno = sources;
+        continue;
+      }
+      if (!anoLinha) {
+        if (!semAno) semAno = sources;
+        continue;
+      }
+      var n = parseInt(anoLinha, 10) || 0;
+      if (n >= anoMaisNova) {
+        maisNova = sources;
+        anoMaisNova = n;
+      }
     }
-    return [];
+    /* Com ano no título, outro ano é outro filme. Sem a linha datada, vale a
+       linha do mesmo nome que o catálogo publicou sem ano. */
+    if (anoPedido) return semAno || [];
+    if (semAno) return semAno;
+    return maisNova || [];
   },
   /* Só quando o link do catálogo não abre. O site devolve 302 para o arquivo. */
   urlStream: function urlStream(ch) {
@@ -612,7 +837,7 @@ var SaimoAPI = {
     if (colonIndex !== -1) {
       var baseIdx = parseInt(token.slice(0, colonIndex), 10);
       var rest = token.slice(colonIndex + 1);
-      var base = this.bases[baseIdx];
+      var base = this.baseDoIndice(baseIdx);
       if (base) {
         return rest.includes(".") ? base + rest : "" + base + rest + ".mp4";
       }
@@ -739,6 +964,10 @@ var SaimoAPI = {
     }
     if (this.destaquesTemFila(this._destaquesCache)) return Promise.resolve(this._destaquesCache);
     return this.loadVodBases().then(function () {
+      var base = String(self.vodRemoteBase || "");
+      if (self.vodDestaquesRemote && (base.indexOf("http://") === 0 || base.indexOf("https://") === 0)) {
+        return self.fetchTextUrl(self.vodDestaquesRemote);
+      }
       return self.fetchTextUrl(self.vodDestaquesUrl);
     }).then(function (local) {
       var pack = self.aplicarDestaquesTexto(local);
@@ -1032,8 +1261,13 @@ var SaimoAPI = {
         var line = _step3.value;
         line = line.trim();
         if (line.startsWith("@")) {
-          var t = _this11.tituloDaArroba(line);
-          if (_this11.titulosVodIguais(t, title)) inSeries = true;else if (inSeries) return 0; // break
+          var colsH = line.replace(/^@/, "").split("\t");
+          var t = String(colsH[0] || "").trim();
+          var anoH = String(colsH[1] || "").trim();
+          var combina = _this11.titulosVodIguais(t, title);
+          var anoPedido = _this11.anoDoTitulo(title);
+          if (combina && anoPedido && /^\d{4}$/.test(anoH) && anoH !== anoPedido) combina = false;
+          if (combina) inSeries = true;else if (inSeries) return 0; // break
           return 1; // continue
         }
         if (!inSeries) return 1; // continue
@@ -1104,7 +1338,7 @@ var SaimoAPI = {
               break;
             }
             cols = lines[i].split("\t");
-            if (!(cols.length >= 3 && _this12.titulosVodIguais(cols[0], title))) {
+            if (!(cols.length >= 3 && _this12.casaTituloVod(cols[0] + (cols[1] && /^\d{4}$/.test(cols[1].trim()) ? " (" + cols[1].trim() + ")" : ""), title))) {
               _context11.n = 4;
               break;
             }

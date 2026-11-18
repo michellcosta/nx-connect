@@ -21,10 +21,11 @@ var SaimoCatalogo = (function () {
     if (!token) return '';
     if (token.indexOf('http://') === 0 || token.indexOf('https://') === 0) return token;
     var parts = token.split(':');
-    if (parts.length === 2 && window.SAIMO_VOD_BASES) {
+    if (parts.length === 2) {
       var baseId = parts[0];
       var rel = parts[1];
-      var base = window.SAIMO_VOD_BASES[baseId];
+      var base = window.SaimoAPI && SaimoAPI.baseDoIndice ? SaimoAPI.baseDoIndice(baseId) : "";
+      if (!base && window.SAIMO_VOD_BASES) base = window.SAIMO_VOD_BASES[baseId];
       if (base) {
         if (base.slice(-1) !== '/' && rel.charAt(0) !== '/') base += '/';
         return base + rel + '.mp4';
@@ -119,6 +120,7 @@ var SaimoCatalogo = (function () {
     if (window.SaimoOficial && String(url || "").indexOf("http://") !== 0 && String(url || "").indexOf("https://") !== 0) {
       url = SaimoOficial.resolveVodPath(String(url || "").replace(/^vod\//, ""));
     }
+    if (window.SaimoAPI && SaimoAPI.urlFresca) url = SaimoAPI.urlFresca(url);
     if (!url) {
       callback(new Error('Catálogo Saimo desligado'));
       return;
@@ -126,6 +128,10 @@ var SaimoCatalogo = (function () {
     try {
       var x = new XMLHttpRequest();
       x.open('GET', url, true);
+      if (String(url).indexOf('http://') === 0 || String(url).indexOf('https://') === 0) {
+        try { x.setRequestHeader('Cache-Control', 'no-cache'); } catch (eH) {}
+        try { x.setRequestHeader('Pragma', 'no-cache'); } catch (eH2) {}
+      }
       x.onload = function () {
         if (x.status >= 200 && x.status < 300) {
           callback(null, x.responseText);
